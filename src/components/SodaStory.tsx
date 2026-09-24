@@ -1,4 +1,5 @@
 import React from 'react';
+import { sodatideLifestyleImg } from '../assets/images';
 
 interface SodaStoryProps {
   onOrderClick: () => void;
@@ -30,7 +31,7 @@ export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
           <div className="md:col-span-6 flex justify-center">
             <div className="relative w-full max-w-sm sm:max-w-md overflow-hidden rounded-2xl shadow-md border border-slate-200/80 bg-white">
               <img
-                src="/src/assets/images/sodatide_candid_lifestyle_1790286411978.jpg"
+                src={sodatideLifestyleImg}
                 alt="SodaTide in authentic daily morning routine"
                 referrerPolicy="no-referrer"
                 className="w-full h-auto object-cover rounded-2xl hover:scale-102 transition-transform duration-500"

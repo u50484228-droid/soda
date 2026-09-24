@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, X, ShieldAlert, Sparkles, AlertCircle, HeartHandshake, ArrowRight } from 'lucide-react';
+import { sodatideIngredientsImg } from '../assets/images';
 
 interface ProblemSolutionProps {
   onOrderClick: () => void;
@@ -33,7 +34,7 @@ export const ProblemSolution: React.FC<ProblemSolutionProps> = ({ onOrderClick }
           <div className="lg:col-span-5 space-y-4">
             <div className="relative rounded-2xl overflow-hidden border border-purple-500/30 shadow-lg">
               <img
-                src="/src/assets/images/sodatide_ingredients_1790283227735.jpg"
+                src={sodatideIngredientsImg}
                 alt="Natural herbal ingredients: Ginger root, green tea catechins and konjac fiber"
                 referrerPolicy="no-referrer"
                 className="w-full h-80 object-cover transform hover:scale-105 transition-transform duration-500"

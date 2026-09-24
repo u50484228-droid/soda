@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mail, CheckCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { guaranteeGoldSealImg } from '../assets/images';
 
 interface GuaranteeSectionProps {
   onScrollToPricing: () => void;
@@ -19,7 +20,7 @@ export const GuaranteeSection: React.FC<GuaranteeSectionProps> = ({ onScrollToPr
           <div className="w-28 h-28 sm:w-36 sm:h-36 mx-auto -mt-16 sm:-mt-20 mb-6 relative">
             <div className="absolute inset-0 rounded-full bg-amber-400/20 blur-xl animate-pulse" />
             <img
-              src="/src/assets/images/guarantee_gold_seal_1790283236941.jpg"
+              src={guaranteeGoldSealImg}
               alt="100% Satisfaction 60-Day Money Back Guarantee Seal"
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain filter drop-shadow-2xl relative z-10"

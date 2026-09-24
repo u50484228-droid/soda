@@ -1,6 +1,7 @@
 import React from 'react';
 import { TrustSeals } from './TrustSeals';
 import { Check } from 'lucide-react';
+import { sodatidePedestalBottleImg } from '../assets/images';
 
 interface SodaHeroProps {
   onScrollToPricing: () => void;
@@ -51,7 +52,7 @@ export const SodaHero: React.FC<SodaHeroProps> = ({ onScrollToPricing }) => {
 
               {/* Product Bottle - Seamlessly feathered edges with zero rectangular frame */}
               <img
-                src="/src/assets/images/sodatide_pedestal_bottle_1790284706220.jpg"
+                src={sodatidePedestalBottleImg}
                 alt="SodaTide Metabolic and Digestive Support Bottle"
                 referrerPolicy="no-referrer"
                 style={{

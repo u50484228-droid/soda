@@ -1,6 +1,7 @@
 import React from 'react';
 import { SODATIDE_BONUSES } from '../data/sodatideModelData';
 import { Gift, ArrowRight } from 'lucide-react';
+import { bonusEbooksImg } from '../assets/images';
 
 interface SodaBonusesProps {
   onOrderClick: () => void;
@@ -31,7 +32,7 @@ export const SodaBonuses: React.FC<SodaBonusesProps> = ({ onOrderClick }) => {
           <div className="lg:col-span-5 flex justify-center">
             <div className="relative w-full max-w-md">
               <img
-                src="/src/assets/images/synaptigen_bonus_ebooks_1790284421753.jpg"
+                src={bonusEbooksImg}
                 alt="3 Free Gut & Metabolic Health eBooks"
                 referrerPolicy="no-referrer"
                 className="w-full h-auto object-contain rounded-2xl drop-shadow-2xl"

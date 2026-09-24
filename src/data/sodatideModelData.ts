@@ -1,3 +1,17 @@
+import {
+  konjacRootImg,
+  greenTeaImg,
+  gingerRootImg,
+  chromiumImg,
+  inulinImg,
+  probioticImg,
+  peppermintImg,
+  sodatideTwoBottlesImg,
+  sodatideSixBottlesImg,
+  sodatideThreeBottlesImg,
+  bonusEbooksImg
+} from '../assets/images';
+
 export interface SodaIngredient {
   id: string;
   name: string;
@@ -54,7 +68,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'A pure water-soluble dietary fiber that expands gently in the stomach upon contact with fluid, promoting a natural feeling of fullness.',
     scientificRole: 'Slows gastric emptying rate, signals fullness via leptin pathways, and naturally reduces spontaneous caloric intake by up to 35%.',
     visualType: 'fiber',
-    imageUrl: '/src/assets/images/konjac_root_fiber_1790286024819.jpg'
+    imageUrl: konjacRootImg
   },
   {
     id: 'green-tea',
@@ -63,7 +77,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'Standardized to 50% Epigallocatechin Gallate, the most bioactive antioxidant catechin supporting thermogenic metabolism.',
     scientificRole: 'Supports natural resting metabolic rate and promotes fatty acid oxidation without rapid heart rates or jittery stimulant crashes.',
     visualType: 'greentea',
-    imageUrl: '/src/assets/images/green_tea_extract_1790286034422.jpg'
+    imageUrl: greenTeaImg
   },
   {
     id: 'steamed-ginger',
@@ -72,7 +86,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'Specially steamed to maximize bioactive gingerols and shogaols that accelerate sluggish digestive motility and eliminate gut bloat.',
     scientificRole: 'Calms gastrointestinal smooth muscle spasms, accelerates gastric emptying, and relieves after-meal abdominal heaviness.',
     visualType: 'ginger',
-    imageUrl: '/src/assets/images/steamed_ginger_root_1790286043773.jpg'
+    imageUrl: gingerRootImg
   },
   {
     id: 'chromium',
@@ -81,7 +95,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'An essential trace element in highly bioavailable picolinate form that works directly with cellular insulin receptors.',
     scientificRole: 'Stabilizes postprandial blood sugar curves, helping extinguish afternoon sugar cravings and compulsive carbohydrate snacking.',
     visualType: 'chromium',
-    imageUrl: '/src/assets/images/chromium_picolinate_mineral_1790286053479.jpg'
+    imageUrl: chromiumImg
   },
   {
     id: 'inulin',
@@ -90,7 +104,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'Natural prebiotic soluble fiber harvested from organic chicory root to feed and nourish beneficial microbiome flora.',
     scientificRole: 'Converts in the colon into Short-Chain Fatty Acids (SCFAs) that reduce mucosal inflammation and nourish the intestinal lining.',
     visualType: 'inulin',
-    imageUrl: '/src/assets/images/chicory_inulin_prebiotic_1790286062188.jpg'
+    imageUrl: inulinImg
   },
   {
     id: 'probiotic-paracasei',
@@ -99,7 +113,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'Clinically studied probiotic strain recognized for reinforcing the gut-barrier epithelium and balancing appetite signaling.',
     scientificRole: 'Supports the enteric nervous system and helps clear metabolic inflammation across the gut-brain satiety axis.',
     visualType: 'probiotic',
-    imageUrl: '/src/assets/images/lactobacillus_probiotic_flora_1790286070894.jpg'
+    imageUrl: probioticImg
   },
   {
     id: 'peppermint',
@@ -108,7 +122,7 @@ export const SODATIDE_INGREDIENTS: SodaIngredient[] = [
     description: 'Traditional soothing digestive herb containing natural menthol terpenes that relax intestinal distention and refresh digestion.',
     scientificRole: 'Provides rapid relief from intestinal gas entrapment, promoting a flat, comfortable stomach feeling after meals.',
     visualType: 'peppermint',
-    imageUrl: '/src/assets/images/peppermint_fresh_leaves_1790286080720.jpg'
+    imageUrl: peppermintImg
   }
 ];
 
@@ -127,7 +141,7 @@ export const SODATIDE_BUNDLES: SodaBundlePlan[] = [
     freeShipping: false,
     shippingPrice: 9.99,
     badges: ['YOU SAVE $200!', '60 DAYS GUARANTEE'],
-    image: '/src/assets/images/sodatide_two_bottles_1790286567961.jpg',
+    image: sodatideTwoBottlesImg,
     checkoutUrl: 'https://buygoods.com/secure/checkout.html?sessid2=sessid2026092401438432&aff_id=197118&account_id=12726&product_codename=PP_SDT2UNITS_AFF&redirect=aHR0cHM6Ly9pbXByb3ZpbmdvdXJoZWFsdGguY29tL3NkdC1hZmYtYnV5LXVwMS8%3D'
   },
   {
@@ -146,7 +160,7 @@ export const SODATIDE_BUNDLES: SodaBundlePlan[] = [
     highlighted: true,
     freeEbooks: false,
     badges: ['YOU SAVE $780!', 'BIGGEST DISCOUNT', '60 DAYS GUARANTEE'],
-    image: '/src/assets/images/sodatide_six_bottles_1790286579151.jpg',
+    image: sodatideSixBottlesImg,
     checkoutUrl: 'https://buygoods.com/secure/checkout.html?sessid2=sessid2026092401438432&aff_id=197118&account_id=12726&product_codename=PP_SDT6UNITS_AFF&redirect=aHR0cHM6Ly9pbXByb3ZpbmdvdXJoZWFsdGguY29tL3NkdC1hZmYtYnV5LXVwMS1meDI%3D'
   },
   {
@@ -163,7 +177,7 @@ export const SODATIDE_BUNDLES: SodaBundlePlan[] = [
     freeShipping: true,
     shippingPrice: 0,
     badges: ['YOU SAVE $330!', '60 DAYS GUARANTEE'],
-    image: '/src/assets/images/sodatide_three_bottles_1790286588191.jpg',
+    image: sodatideThreeBottlesImg,
     checkoutUrl: 'https://buygoods.com/secure/checkout.html?sessid2=sessid2026092401438432&aff_id=197118&account_id=12726&product_codename=PP_SDT3UNITS_AFF&redirect=aHR0cHM6Ly9pbXByb3ZpbmdvdXJoZWFsdGguY29tL3NkdC1hZmYtYnV5LXVwMS8%3D'
   }
 ];

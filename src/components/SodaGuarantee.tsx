@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
+import { guarantee60SealImg } from '../assets/images';
 
 interface SodaGuaranteeProps {
   onScrollToPricing: () => void;
@@ -15,7 +16,7 @@ export const SodaGuarantee: React.FC<SodaGuaranteeProps> = ({ onScrollToPricing 
           {/* 3D 60-Day Gold Seal */}
           <div className="w-24 h-24 xs:w-28 xs:h-28 sm:w-36 sm:h-36 mx-auto mb-4 sm:mb-6">
             <img
-              src="/src/assets/images/guarantee_60_seal_1790286622870.jpg"
+              src={guarantee60SealImg}
               alt="60-Day 100% Money Back Guarantee Seal"
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain filter drop-shadow-xl"

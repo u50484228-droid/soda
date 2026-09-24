@@ -2,6 +2,11 @@ import React from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { TrustSeals } from './TrustSeals';
 import { SODATIDE_BUNDLES, SodaBundlePlan } from '../data/sodatideModelData';
+import {
+  sodatideTwoBottlesImg,
+  sodatideSixBottlesImg,
+  sodatideThreeBottlesImg
+} from '../assets/images';
 
 interface SodaPricingProps {
   onSelectBundle?: (bundleId: string) => void;
@@ -98,7 +103,7 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
               {/* 2 Bottles Image */}
               <div className="w-full h-48 sm:h-52 flex items-center justify-center my-1">
                 <img
-                  src="/src/assets/images/sodatide_two_bottles_1790286567961.jpg"
+                  src={sodatideTwoBottlesImg}
                   alt="SodaTide 2 Bottles"
                   referrerPolicy="no-referrer"
                   className="max-h-full max-w-full object-contain"
@@ -174,7 +179,7 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
               {/* 6 Bottles Image */}
               <div className="w-full h-48 sm:h-52 flex items-center justify-center my-1">
                 <img
-                  src="/src/assets/images/sodatide_six_bottles_1790286579151.jpg"
+                  src={sodatideSixBottlesImg}
                   alt="SodaTide 6 Bottles Bundle"
                   referrerPolicy="no-referrer"
                   className="max-h-full max-w-full object-contain"
@@ -261,7 +266,7 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
               {/* 3 Bottles Image */}
               <div className="w-full h-48 sm:h-52 flex items-center justify-center my-1">
                 <img
-                  src="/src/assets/images/sodatide_three_bottles_1790286588191.jpg"
+                  src={sodatideThreeBottlesImg}
                   alt="SodaTide 3 Bottles"
                   referrerPolicy="no-referrer"
                   className="max-h-full max-w-full object-contain"
