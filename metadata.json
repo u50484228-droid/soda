@@ -1,0 +1,6 @@
+{
+  "name": "SodaTide™ Metabolic Support",
+  "description": "Premium direct-to-consumer health supplement landing page featuring metabolic digestion science, bundle discounts, verified buyer reviews, and 60-day satisfaction guarantee.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

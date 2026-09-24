@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  body {
+    background-color: #43055c;
+    color: #ffffff;
+  }
+}
+
+.font-heading {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Royal Purple Theme Utilities */
+.bg-royal-purple {
+  background-color: #490069;
+}
+
+.bg-royal-purple-dark {
+  background-color: #3b0054;
+}
+
+.bg-royal-purple-gradient {
+  background: linear-gradient(180deg, #520077 0%, #3e005a 50%, #320049 100%);
+}
+
+.text-sodatide-yellow {
+  color: #ffdd00;
+}
+
+.bg-sodatide-yellow {
+  background-color: #ffdd00;
+}
+
+.border-sodatide-yellow {
+  border-color: #ffdd00;
+}
+
+/* Buttons */
+.btn-yellow-glow {
+  background-color: #ffdd00;
+  color: #111827;
+  font-weight: 800;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 18px -2px rgba(255, 221, 0, 0.45);
+}
+
+.btn-yellow-glow:hover {
+  background-color: #ffe633;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -2px rgba(255, 221, 0, 0.6);
+}
+
+.btn-gray-cart {
+  background-color: #d1d5db;
+  color: #111827;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.btn-gray-cart:hover {
+  background-color: #9ca3af;
+  color: #000000;
+  transform: translateY(-2px);
+}
