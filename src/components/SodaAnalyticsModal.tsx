@@ -73,7 +73,9 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
       <div 
-        className="bg-slate-900 border border-slate-700/80 text-white rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+        id="analytics-modal"
+        data-analytics-ignore="true"
+        className="analytics-modal-container bg-slate-900 border border-slate-700/80 text-white rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -157,7 +159,9 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
             </div>
             <div className="flex items-center gap-1.5">
               <MousePointerClick className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Cliques: <strong className="text-white font-mono">{currentSession.sessionClicks}</strong></span>
+              <span>Cliques: <strong className="text-white font-mono">
+                {visitorLocation.isExcluded ? '0 (Bloqueado)' : currentSession.sessionClicks}
+              </strong></span>
             </div>
           </div>
 

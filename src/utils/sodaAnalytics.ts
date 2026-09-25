@@ -515,18 +515,42 @@ class RealAnalyticsTracker {
 
     // Click tracking
     window.addEventListener('click', (e: MouseEvent) => {
+      // If this IP or device is excluded (admin/owner), never track any click
+      if (this.isExcluded()) return;
+
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
+      // Ignore any click inside the analytics modal or with data-analytics-ignore
+      if (target.closest('[data-analytics-ignore], #analytics-modal, .analytics-modal-container')) {
+        return;
+      }
+
       const trackableEl = target.closest('[data-button-name], [data-aff-track], button, a') as HTMLElement | null;
       if (trackableEl) {
+        // Also ensure the trackable button is not inside modal
+        if (trackableEl.closest('[data-analytics-ignore], #analytics-modal, .analytics-modal-container')) {
+          return;
+        }
+
         let name = trackableEl.getAttribute('data-button-name');
         if (!name) {
           name = trackableEl.innerText?.trim().slice(0, 35) || 'Botão';
         }
         
-        // Skip analytics modal close/reset clicks
-        if (name.includes('Telemetry') || name.includes('Analytics') || name.includes('Fechar') || name.includes('Zerar') || name.includes('Bloquear')) {
+        // Skip analytics modal close/reset/tab clicks
+        if (
+          name.includes('Telemetry') || 
+          name.includes('Analytics') || 
+          name.includes('Fechar') || 
+          name.includes('Zerar') || 
+          name.includes('Limpar') ||
+          name.includes('Bloquear') ||
+          name.includes('Origem no Mundo') ||
+          name.includes('Quais Botões') ||
+          name.includes('Até Onde') ||
+          name.includes('Histórico')
+        ) {
           return;
         }
 
@@ -573,14 +597,12 @@ class RealAnalyticsTracker {
   }
 
   public recordClick(buttonName: string) {
-    // Current session always increments locally so admin sees their click count in the live banner
-    this.currentSessionClicks += 1;
-
-    // If this IP is excluded, DO NOT save to Firebase database!
+    // If this IP or device is excluded, completely ignore and never increment anything!
     if (this.isExcluded()) {
       return;
     }
 
+    this.currentSessionClicks += 1;
     this.data.totalClicks += 1;
 
     const isCheckout = buttonName.toLowerCase().includes('checkout') || 
