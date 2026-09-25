@@ -56,9 +56,9 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
     return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
   };
 
-  const handleResetToZero = () => {
-    if (window.confirm('Tem certeza que deseja zerar todos os contadores e começar com 0 visitas e cliques?')) {
-      tracker.resetToZero();
+  const handleResetToZero = async () => {
+    if (window.confirm('Deseja limpar os dados anteriores e zerar o banco de dados Firestore para 0? (Seu IP já está bloqueado e não será mais contabilizado)')) {
+      await tracker.resetToZero();
       setData({ ...tracker.getData() });
       setCurrentSession(tracker.getCurrentSessionStats());
     }
@@ -161,6 +161,23 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
             </div>
           </div>
 
+        </div>
+
+        {/* ================= ADMIN IP EXCLUSION NOTICE BANNER ================= */}
+        <div className="px-5 py-2.5 bg-amber-950/50 border-b border-amber-900/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-amber-200">
+            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>Filtro de Administrador:</strong> Seu IP (<code className="bg-amber-950 px-1.5 py-0.5 rounded text-amber-300 font-mono font-bold">{visitorLocation.ip}</code>) está <strong>BLOQUEADO</strong>. Suas visitas e cliques NÃO alteram os gráficos!
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Seu IP Não Contabiliza
+            </span>
+          </div>
         </div>
 
         {/* ================= 4 MAIN REAL STATS ================= */}
@@ -284,11 +301,11 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
 
           <button
             onClick={handleResetToZero}
-            className="pb-3 text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
-            title="Limpar todos os dados e começar do zero"
+            className="pb-3 text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+            title="Limpar dados de teste e zerar para novos visitantes reais"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Zerar Contadores (0)</span>
+            <span>Limpar Testes & Zerar (0)</span>
           </button>
         </div>
 

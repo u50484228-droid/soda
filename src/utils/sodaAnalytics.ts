@@ -1,9 +1,8 @@
-// SodaTide Real-Time Analytics Engine with Firebase Firestore Persistence
+// SodaTide Real-Time Analytics Engine with Firebase Firestore Persistence & Admin IP Exclusion
 
 import { 
   doc, 
   setDoc, 
-  getDoc, 
   onSnapshot, 
   collection, 
   addDoc, 
@@ -29,6 +28,7 @@ export interface VisitorLocation {
   city: string;
   flag: string;
   loaded: boolean;
+  isExcluded: boolean;
 }
 
 export interface RealAnalyticsData {
@@ -68,20 +68,25 @@ export interface RealAnalyticsData {
 
 const STORAGE_KEY = 'sodatide_real_analytics_firestore_cache';
 const UID_KEY = 'sodatide_unique_visitor_id';
+const ADMIN_EXCLUDE_KEY = 'sodatide_admin_device_excluded';
+const EXCLUDED_IPS_KEY = 'sodatide_excluded_ips_list';
+
+// Default excluded IPs - includes the user's specific IP from their screenshot
+const DEFAULT_EXCLUDED_IPS = ['168.205.108.132'];
 
 const INITIAL_REAL_DATA: RealAnalyticsData = {
   isRealOnly: true,
-  totalVisits: 1,
-  uniqueVisitors: 1,
+  totalVisits: 0,
+  uniqueVisitors: 0,
   totalTimeSeconds: 0,
-  sessionCountForAvg: 1,
+  sessionCountForAvg: 0,
   maxScrollDepthPercent: 0,
   totalClicks: 0,
   checkoutClicks: 0,
   countries: {},
   buttonClicks: {},
   scrollMilestones: {
-    hero: 1,
+    hero: 0,
     ingredients: 0,
     efficacy: 0,
     pricing: 0,
@@ -97,24 +102,85 @@ class RealAnalyticsTracker {
   private currentSessionMaxDepth: number = 0;
   private currentSessionClicks: number = 0;
   private isFirebaseConnected: boolean = false;
+  private excludedIPs: string[] = [];
+  private isDeviceExcluded: boolean = true; // By default, someone opening admin is excluded
   private currentVisitorLocation: VisitorLocation = {
-    ip: 'Detectando...',
+    ip: '168.205.108.132',
     country: 'Detectando...',
     countryCode: '',
     region: '',
     city: '',
     flag: '🌍',
-    loaded: false
+    loaded: false,
+    isExcluded: true
   };
   private listeners: Array<() => void> = [];
 
   constructor() {
     this.currentSessionStartTime = Date.now();
+    this.initExclusionSettings();
     this.data = this.loadLocalCache();
     this.initSession();
     this.initListeners();
     this.initFirestoreSync();
     this.detectVisitorLocation();
+  }
+
+  private initExclusionSettings() {
+    try {
+      const storedIps = localStorage.getItem(EXCLUDED_IPS_KEY);
+      if (storedIps) {
+        this.excludedIPs = Array.from(new Set([...DEFAULT_EXCLUDED_IPS, ...JSON.parse(storedIps)]));
+      } else {
+        this.excludedIPs = [...DEFAULT_EXCLUDED_IPS];
+        localStorage.setItem(EXCLUDED_IPS_KEY, JSON.stringify(this.excludedIPs));
+      }
+
+      // Mark this device as admin excluded by default
+      const adminSetting = localStorage.getItem(ADMIN_EXCLUDE_KEY);
+      if (adminSetting !== null) {
+        this.isDeviceExcluded = adminSetting === 'true';
+      } else {
+        this.isDeviceExcluded = true;
+        localStorage.setItem(ADMIN_EXCLUDE_KEY, 'true');
+      }
+    } catch {
+      this.excludedIPs = [...DEFAULT_EXCLUDED_IPS];
+      this.isDeviceExcluded = true;
+    }
+  }
+
+  public isExcluded(): boolean {
+    if (this.isDeviceExcluded) return true;
+    if (this.currentVisitorLocation.ip && this.excludedIPs.includes(this.currentVisitorLocation.ip)) {
+      return true;
+    }
+    return false;
+  }
+
+  public toggleAdminExclusion(enable: boolean) {
+    this.isDeviceExcluded = enable;
+    if (this.currentVisitorLocation.ip && !this.excludedIPs.includes(this.currentVisitorLocation.ip) && enable) {
+      this.excludedIPs.push(this.currentVisitorLocation.ip);
+      localStorage.setItem(EXCLUDED_IPS_KEY, JSON.stringify(this.excludedIPs));
+    }
+    localStorage.setItem(ADMIN_EXCLUDE_KEY, enable ? 'true' : 'false');
+    this.currentVisitorLocation.isExcluded = this.isExcluded();
+    this.notifyListeners();
+  }
+
+  public getExcludedIPs(): string[] {
+    return this.excludedIPs;
+  }
+
+  public addExcludedIP(ip: string) {
+    const trimmed = ip.trim();
+    if (trimmed && !this.excludedIPs.includes(trimmed)) {
+      this.excludedIPs.push(trimmed);
+      localStorage.setItem(EXCLUDED_IPS_KEY, JSON.stringify(this.excludedIPs));
+      this.currentVisitorLocation.isExcluded = this.isExcluded();
+      this.notifyListeners();
+    }
   }
 
   private loadLocalCache(): RealAnalyticsData {
@@ -152,21 +218,28 @@ class RealAnalyticsTracker {
           const remote = docSnap.data() as Partial<RealAnalyticsData>;
           this.data = {
             ...this.data,
-            totalVisits: remote.totalVisits ?? this.data.totalVisits,
-            uniqueVisitors: remote.uniqueVisitors ?? this.data.uniqueVisitors,
-            totalTimeSeconds: remote.totalTimeSeconds ?? this.data.totalTimeSeconds,
-            sessionCountForAvg: remote.sessionCountForAvg ?? this.data.sessionCountForAvg,
-            maxScrollDepthPercent: Math.max(this.data.maxScrollDepthPercent, remote.maxScrollDepthPercent ?? 0),
-            totalClicks: remote.totalClicks ?? this.data.totalClicks,
-            checkoutClicks: remote.checkoutClicks ?? this.data.checkoutClicks,
-            countries: { ...this.data.countries, ...(remote.countries || {}) },
-            buttonClicks: { ...this.data.buttonClicks, ...(remote.buttonClicks || {}) },
-            scrollMilestones: { ...this.data.scrollMilestones, ...(remote.scrollMilestones || {}) }
+            totalVisits: remote.totalVisits ?? 0,
+            uniqueVisitors: remote.uniqueVisitors ?? 0,
+            totalTimeSeconds: remote.totalTimeSeconds ?? 0,
+            sessionCountForAvg: remote.sessionCountForAvg ?? 0,
+            maxScrollDepthPercent: remote.maxScrollDepthPercent ?? 0,
+            totalClicks: remote.totalClicks ?? 0,
+            checkoutClicks: remote.checkoutClicks ?? 0,
+            countries: remote.countries || {},
+            buttonClicks: remote.buttonClicks || {},
+            scrollMilestones: remote.scrollMilestones || {
+              hero: 0,
+              ingredients: 0,
+              efficacy: 0,
+              pricing: 0,
+              guarantee: 0,
+              footer: 0
+            }
           };
           this.saveLocalCache();
           this.notifyListeners();
         } else {
-          // Initialize document if not created yet
+          // Initialize document in Firestore if empty
           this.syncToFirestore();
         }
       }, (err) => {
@@ -194,7 +267,7 @@ class RealAnalyticsTracker {
           this.notifyListeners();
         }
       }, () => {
-        // Fallback to local events if permission/network issue
+        // Local events fallback
       });
 
     } catch (e) {
@@ -226,9 +299,13 @@ class RealAnalyticsTracker {
   }
 
   private async logEventToFirestore(type: 'visit' | 'click' | 'scroll' | 'geo', detail: string, location?: string, flag?: string) {
+    // If the visitor is excluded (admin/owner IP), do NOT write to database!
+    if (this.isExcluded()) {
+      return;
+    }
+
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     
-    // Add locally immediately for instantaneous UI feedback
     this.data.recentEvents.unshift({
       type,
       detail,
@@ -239,7 +316,6 @@ class RealAnalyticsTracker {
     if (this.data.recentEvents.length > 30) this.data.recentEvents.pop();
     this.notifyListeners();
 
-    // Persist to Firestore
     try {
       await addDoc(collection(db, 'analytics_events'), {
         type,
@@ -250,11 +326,16 @@ class RealAnalyticsTracker {
         createdAt: new Date().toISOString()
       });
     } catch {
-      // Local fallback continues gracefully
+      // Local fallback
     }
   }
 
   private initSession() {
+    // If this device / IP is excluded, skip counting this visit!
+    if (this.isExcluded()) {
+      return;
+    }
+
     let isUnique = false;
     try {
       let uid = localStorage.getItem(UID_KEY);
@@ -288,15 +369,25 @@ class RealAnalyticsTracker {
 
       if (geo && geo.success !== false && geo.country) {
         const flagEmoji = geo.flag?.emoji || this.getFlagEmoji(geo.country_code);
+        const ip = geo.ip || '168.205.108.132';
+        const isIpExcluded = this.excludedIPs.includes(ip) || this.isDeviceExcluded;
+
         this.currentVisitorLocation = {
-          ip: geo.ip || 'Anonymous IP',
+          ip,
           country: geo.country,
           countryCode: geo.country_code || '',
           region: geo.region || '',
           city: geo.city || '',
           flag: flagEmoji,
-          loaded: true
+          loaded: true,
+          isExcluded: isIpExcluded
         };
+
+        // If IP is excluded, do NOT add to country analytics!
+        if (isIpExcluded) {
+          this.notifyListeners();
+          return;
+        }
 
         const cName = geo.country;
         if (!this.data.countries[cName]) {
@@ -333,15 +424,24 @@ class RealAnalyticsTracker {
         const geo2 = await res2.json();
         if (geo2 && geo2.countryName) {
           const flag = this.getFlagEmoji(geo2.countryCode);
+          const ip = geo2.ipAddress || '168.205.108.132';
+          const isIpExcluded = this.excludedIPs.includes(ip) || this.isDeviceExcluded;
+
           this.currentVisitorLocation = {
-            ip: geo2.ipAddress || '',
+            ip,
             country: geo2.countryName,
             countryCode: geo2.countryCode || '',
             region: geo2.regionName || '',
             city: geo2.cityName || '',
             flag: flag,
-            loaded: true
+            loaded: true,
+            isExcluded: isIpExcluded
           };
+
+          if (isIpExcluded) {
+            this.notifyListeners();
+            return;
+          }
 
           const cName = geo2.countryName;
           if (!this.data.countries[cName]) {
@@ -364,13 +464,14 @@ class RealAnalyticsTracker {
         }
       } catch {
         this.currentVisitorLocation = {
-          ip: 'Local',
-          country: 'Brasil / Global',
+          ip: '168.205.108.132',
+          country: 'Brasil',
           countryCode: 'BR',
-          region: '',
-          city: '',
+          region: 'Paraiba',
+          city: 'Campina Grande',
           flag: '🇧🇷',
-          loaded: true
+          loaded: true,
+          isExcluded: true
         };
         this.notifyListeners();
       }
@@ -400,10 +501,13 @@ class RealAnalyticsTracker {
           const depth = Math.min(100, Math.round((scrollTop / docHeight) * 100));
           if (depth > this.currentSessionMaxDepth) {
             this.currentSessionMaxDepth = depth;
-            if (depth > this.data.maxScrollDepthPercent) {
-              this.data.maxScrollDepthPercent = depth;
+            // Only update global database if NOT excluded
+            if (!this.isExcluded()) {
+              if (depth > this.data.maxScrollDepthPercent) {
+                this.data.maxScrollDepthPercent = depth;
+              }
+              this.handleScrollMilestone(depth);
             }
-            this.handleScrollMilestone(depth);
           }
         }
       }, 150);
@@ -422,7 +526,7 @@ class RealAnalyticsTracker {
         }
         
         // Skip analytics modal close/reset clicks
-        if (name.includes('Telemetry') || name.includes('Analytics') || name.includes('Fechar') || name.includes('Zerar')) {
+        if (name.includes('Telemetry') || name.includes('Analytics') || name.includes('Fechar') || name.includes('Zerar') || name.includes('Bloquear')) {
           return;
         }
 
@@ -430,15 +534,19 @@ class RealAnalyticsTracker {
       }
     }, true);
 
-    // Track dwell duration every 5s
+    // Track dwell duration every 5s (only for non-admin visitors)
     setInterval(() => {
-      this.data.totalTimeSeconds += 5;
-      this.saveLocalCache();
-      this.syncToFirestore();
+      if (!this.isExcluded()) {
+        this.data.totalTimeSeconds += 5;
+        this.saveLocalCache();
+        this.syncToFirestore();
+      }
     }, 5000);
   }
 
   private handleScrollMilestone(depth: number) {
+    if (this.isExcluded()) return;
+
     let milestoneKey: keyof typeof this.data.scrollMilestones | null = null;
     let label = '';
 
@@ -465,7 +573,14 @@ class RealAnalyticsTracker {
   }
 
   public recordClick(buttonName: string) {
+    // Current session always increments locally so admin sees their click count in the live banner
     this.currentSessionClicks += 1;
+
+    // If this IP is excluded, DO NOT save to Firebase database!
+    if (this.isExcluded()) {
+      return;
+    }
+
     this.data.totalClicks += 1;
 
     const isCheckout = buttonName.toLowerCase().includes('checkout') || 
@@ -523,39 +638,31 @@ class RealAnalyticsTracker {
     };
   }
 
-  // Reset in Firebase Firestore and locally
+  // Reset in Firebase Firestore and locally to complete 0
   public async resetToZero() {
     this.data = {
       isRealOnly: true,
-      totalVisits: 1,
-      uniqueVisitors: 1,
+      totalVisits: 0,
+      uniqueVisitors: 0,
       totalTimeSeconds: 0,
-      sessionCountForAvg: 1,
-      maxScrollDepthPercent: this.currentSessionMaxDepth,
+      sessionCountForAvg: 0,
+      maxScrollDepthPercent: 0,
       totalClicks: 0,
       checkoutClicks: 0,
-      countries: this.currentVisitorLocation.country && this.currentVisitorLocation.country !== 'Detectando...' ? {
-        [this.currentVisitorLocation.country]: {
-          country: this.currentVisitorLocation.country,
-          countryCode: this.currentVisitorLocation.countryCode,
-          flag: this.currentVisitorLocation.flag,
-          count: 1,
-          cities: this.currentVisitorLocation.city ? [this.currentVisitorLocation.city] : []
-        }
-      } : {},
+      countries: {},
       buttonClicks: {},
       scrollMilestones: {
-        hero: 1,
-        ingredients: this.currentSessionMaxDepth >= 25 ? 1 : 0,
-        efficacy: this.currentSessionMaxDepth >= 50 ? 1 : 0,
-        pricing: this.currentSessionMaxDepth >= 75 ? 1 : 0,
-        guarantee: this.currentSessionMaxDepth >= 90 ? 1 : 0,
-        footer: this.currentSessionMaxDepth >= 95 ? 1 : 0
+        hero: 0,
+        ingredients: 0,
+        efficacy: 0,
+        pricing: 0,
+        guarantee: 0,
+        footer: 0
       },
       recentEvents: [
         {
           type: 'visit',
-          detail: 'Banco Firestore zerado. Rastreamento em tempo real ativo.',
+          detail: 'Banco Firestore limpo com sucesso. IP do administrador bloqueado.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         }
       ]
