@@ -10,9 +10,11 @@ import { SodaReferences } from './components/SodaReferences';
 import { SodaFaq } from './components/SodaFaq';
 import { SodaFooter } from './components/SodaFooter';
 import { SodaPolicyModal, SodaPolicyType } from './components/SodaPolicyModal';
+import { SodaAnalyticsModal } from './components/SodaAnalyticsModal';
 
 export default function App() {
   const [activePolicy, setActivePolicy] = useState<SodaPolicyType | null>(null);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
 
   const scrollToPricing = () => {
     const el = document.getElementById('pricing');
@@ -53,12 +55,21 @@ export default function App() {
       </main>
 
       {/* Navy Legal Compliance Footer (Matches Photo 5) */}
-      <SodaFooter onOpenPolicy={(type) => setActivePolicy(type)} />
+      <SodaFooter 
+        onOpenPolicy={(type) => setActivePolicy(type)} 
+        onOpenAnalytics={() => setIsAnalyticsOpen(true)}
+      />
 
       {/* Policy and Customer Support Modal */}
       <SodaPolicyModal
         type={activePolicy}
         onClose={() => setActivePolicy(null)}
+      />
+
+      {/* Secret Admin Analytics & Telemetry Modal */}
+      <SodaAnalyticsModal
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
       />
     </div>
   );

@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read and write for real-time analytics aggregation and event tracking
+    match /analytics_summary/{docId} {
+      allow read, write: if true;
+    }
+    match /analytics_events/{eventId} {
+      allow read, create, write: if true;
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "AnalyticsSummary": {
+      "description": "Aggregated real-time metrics including visits, clicks, scroll depth, countries and dwell time",
+      "fields": {
+        "totalVisits": { "type": "number", "description": "Total visits recorded across all users" },
+        "uniqueVisitors": { "type": "number", "description": "Count of unique visitor IDs" },
+        "totalClicks": { "type": "number", "description": "Total button clicks recorded" },
+        "checkoutClicks": { "type": "number", "description": "Total checkout / package purchase button clicks" },
+        "totalTimeSeconds": { "type": "number", "description": "Accumulated active duration on site" },
+        "countries": { "type": "object", "description": "Map of countries with visitor counts and cities" },
+        "buttonClicks": { "type": "object", "description": "Map of button names with click counts" },
+        "scrollMilestones": { "type": "object", "description": "Breakdown of visits reaching each scroll depth milestone" },
+        "lastUpdated": { "type": "string", "description": "ISO timestamp of last activity update" }
+      }
+    },
+    "AnalyticsEvent": {
+      "description": "Chronological stream of real-time actions (visits, button clicks, geolocation, scroll milestones)",
+      "fields": {
+        "type": { "type": "string", "description": "Type of event: visit, click, scroll, geo" },
+        "detail": { "type": "string", "description": "Human-readable description of event" },
+        "location": { "type": "string", "description": "Country / city of visitor if applicable" },
+        "flag": { "type": "string", "description": "Flag emoji of visitor country" },
+        "timestamp": { "type": "string", "description": "ISO timestamp of event occurrence" }
+      }
+    }
+  },
+  "firestore": {
+    "/analytics_summary/global_metrics": {
+      "entity": "AnalyticsSummary",
+      "description": "Global aggregated analytics document for SodaTide"
+    },
+    "/analytics_events/{eventId}": {
+      "entity": "AnalyticsEvent",
+      "description": "Individual event logs stream"
+    }
+  }
+}
