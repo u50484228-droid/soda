@@ -66,7 +66,7 @@ export interface RealAnalyticsData {
   }>;
 }
 
-const STORAGE_KEY = 'sodatide_real_analytics_firestore_cache';
+const STORAGE_KEY = 'sodatide_real_analytics_firestore_v4';
 const UID_KEY = 'sodatide_unique_visitor_id';
 const ADMIN_EXCLUDE_KEY = 'sodatide_admin_device_excluded';
 const EXCLUDED_IPS_KEY = 'sodatide_excluded_ips_list';
@@ -262,10 +262,8 @@ class RealAnalyticsTracker {
             timestamp: item.timestamp
           });
         });
-        if (events.length > 0) {
-          this.data.recentEvents = events;
-          this.notifyListeners();
-        }
+        this.data.recentEvents = events;
+        this.notifyListeners();
       }, () => {
         // Local events fallback
       });
@@ -652,6 +650,13 @@ class RealAnalyticsTracker {
   }
 
   public getCurrentSessionStats() {
+    if (this.isExcluded()) {
+      return {
+        elapsedSeconds: 0,
+        maxScrollDepth: 0,
+        sessionClicks: 0
+      };
+    }
     const elapsedSeconds = Math.floor((Date.now() - this.currentSessionStartTime) / 1000);
     return {
       elapsedSeconds,
