@@ -59,9 +59,11 @@ export const SodaGuarantee: React.FC<SodaGuaranteeProps> = ({ onScrollToPricing 
           <div className="mt-6 sm:mt-8">
             <button
               onClick={onScrollToPricing}
+              data-aff-track
+              data-button-name="Guarantee - Get Risk-Free Bottles"
               className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-full text-sm sm:text-base font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 shadow-lg shadow-purple-600/25 hover:shadow-xl hover:shadow-purple-600/35 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-center"
             >
-              Get Your 180-Day Risk-Free Bottles
+              Get Your Risk-Free Bottles
             </button>
           </div>
 

@@ -30,6 +30,8 @@ export const SodaHero: React.FC<SodaHeroProps> = ({ onScrollToPricing }) => {
             <div className="pt-1 sm:pt-2 flex justify-center lg:justify-start">
               <button
                 onClick={onScrollToPricing}
+                data-aff-track
+                data-button-name="Hero - Claim Discounted Bottles"
                 className="w-full xs:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-full text-sm sm:text-base font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 shadow-lg shadow-purple-600/25 hover:shadow-xl hover:shadow-purple-600/35 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-center"
               >
                 Claim Your Discounted Bottles

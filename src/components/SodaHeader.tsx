@@ -39,6 +39,8 @@ export const SodaHeader: React.FC<SodaHeaderProps> = ({ onOrderClick }) => {
         <div className="flex items-center gap-3">
           <button
             onClick={onOrderClick}
+            data-aff-track
+            data-button-name="Header - Order Now"
             className="hidden sm:inline-flex items-center justify-center px-6 lg:px-7 py-2.5 rounded-full text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 shadow-md shadow-purple-600/20 hover:shadow-lg hover:shadow-purple-600/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
           >
             Order Now

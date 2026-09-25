@@ -79,6 +79,8 @@ export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
             <div className="pt-2">
               <button
                 onClick={onOrderClick}
+                data-aff-track
+                data-button-name="Story - Order Now"
                 className="w-full sm:w-auto px-8 sm:px-9 py-3.5 rounded-full text-sm sm:text-base font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 shadow-lg shadow-purple-600/25 hover:shadow-xl hover:shadow-purple-600/35 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-center"
               >
                 Order Now

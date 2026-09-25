@@ -146,6 +146,8 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 href={basic2Url}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-aff-track
+                data-button-name="Checkout - 2 Bottles ($158)"
                 onClick={() => handlePurchaseClick(basic2Url)}
                 className="w-full py-3 sm:py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide text-slate-900 bg-gradient-to-b from-[#d6d9de] via-[#cbcfd6] to-[#bdc2ca] hover:from-[#cbcfd6] hover:to-[#b0b5be] active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all border border-slate-300 no-underline"
               >
@@ -232,6 +234,8 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 href={bestValue6Url}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-aff-track
+                data-button-name="Checkout - 6 Bottles ($294 Best Offer)"
                 onClick={() => handlePurchaseClick(bestValue6Url)}
                 className="w-full py-3.5 px-4 rounded-xl font-black text-sm sm:text-base uppercase tracking-wide text-black bg-gradient-to-b from-[#ffc800] via-[#f59e0b] to-[#e68a00] hover:from-[#ffd014] hover:to-[#f59e0b] active:scale-[0.98] shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-300 no-underline"
               >
@@ -311,6 +315,8 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 href={popular3Url}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-aff-track
+                data-button-name="Checkout - 3 Bottles ($207 Popular)"
                 onClick={() => handlePurchaseClick(popular3Url)}
                 className="w-full py-3 sm:py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide text-slate-900 bg-gradient-to-b from-[#d6d9de] via-[#cbcfd6] to-[#bdc2ca] hover:from-[#cbcfd6] hover:to-[#b0b5be] active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all border border-slate-300 no-underline"
               >

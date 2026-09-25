@@ -447,6 +447,8 @@ export const SodaEfficacy: React.FC<SodaEfficacyProps> = ({ onOrderClick }) => {
 
             <button
               onClick={onOrderClick}
+              data-aff-track
+              data-button-name="Efficacy - See Multi-Bottle Bundles"
               className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-md shrink-0 active:scale-95"
             >
               See Multi-Bottle Bundles ↓
@@ -525,6 +527,8 @@ export const SodaEfficacy: React.FC<SodaEfficacyProps> = ({ onOrderClick }) => {
             <div className="pt-2">
               <button
                 onClick={onOrderClick}
+                data-aff-track
+                data-button-name="Efficacy - Claim Discounted Supply Now"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-b from-[#ffd014] via-[#f59e0b] to-[#d97706] hover:from-[#ffe043] hover:to-[#f59e0b] text-slate-950 font-black text-base sm:text-lg uppercase tracking-wider rounded-2xl shadow-xl shadow-amber-500/30 hover:shadow-amber-500/50 active:scale-[0.98] transition-all cursor-pointer border border-amber-300"
               >
                 <span>CLAIM YOUR DISCOUNTED SUPPLY NOW</span>
