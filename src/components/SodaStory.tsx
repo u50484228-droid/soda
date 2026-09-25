@@ -1,11 +1,13 @@
-import React from 'react';
-import { sodatideLifestyleImg } from '../assets/images';
+import React, { useState } from 'react';
+import { sodatideBotanicalTableImg, sodatideWomanMorningImg } from '../assets/images';
 
 interface SodaStoryProps {
   onOrderClick: () => void;
 }
 
 export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
+  const [selectedPhoto, setSelectedPhoto] = useState<'botanical' | 'lifestyle'>('botanical');
+
   return (
     <section className="py-16 sm:py-24 bg-white text-slate-800">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
@@ -27,15 +29,39 @@ export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
         {/* Product Inset Module (Matches Photo 1 Bottom) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-10 items-center bg-slate-50/90 rounded-3xl p-6 sm:p-8 md:p-12 border border-slate-200/70 shadow-sm">
           
-          {/* Left Column: Authentic Candid Photo (No AI ad look) */}
-          <div className="md:col-span-6 flex justify-center">
+          {/* Left Column: Authentic Product & Natural Ingredients Photo */}
+          <div className="md:col-span-6 flex flex-col items-center">
             <div className="relative w-full max-w-sm sm:max-w-md overflow-hidden rounded-2xl shadow-md border border-slate-200/80 bg-white">
               <img
-                src={sodatideLifestyleImg}
-                alt="SodaTide in authentic daily morning routine"
+                src={selectedPhoto === 'botanical' ? sodatideBotanicalTableImg : sodatideWomanMorningImg}
+                alt={selectedPhoto === 'botanical' ? 'SodaTide formula with fresh ginger, mint, green tea and pure capsules' : 'SodaTide daily healthy morning routine'}
                 referrerPolicy="no-referrer"
                 className="w-full h-auto object-cover rounded-2xl hover:scale-102 transition-transform duration-500"
               />
+            </div>
+
+            {/* Subtle Photo Variant Switcher */}
+            <div className="flex items-center gap-2 mt-3.5 bg-slate-200/70 p-1 rounded-full text-xs font-semibold text-slate-600">
+              <button
+                onClick={() => setSelectedPhoto('botanical')}
+                className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                  selectedPhoto === 'botanical'
+                    ? 'bg-white text-purple-900 shadow-xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                🌿 Ingredientes & Frasco
+              </button>
+              <button
+                onClick={() => setSelectedPhoto('lifestyle')}
+                className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                  selectedPhoto === 'lifestyle'
+                    ? 'bg-white text-purple-900 shadow-xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                ☀️ Rotina Matinal
+              </button>
             </div>
           </div>
 

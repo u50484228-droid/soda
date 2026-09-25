@@ -67,6 +67,12 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
   const bestValue6Url = BUYGOODS_URLS.bestValue6;
   const popular3Url = BUYGOODS_URLS.popular3;
 
+  const handlePurchaseClick = (url: string) => {
+    if (typeof (window as any).gtag_report_conversion === 'function') {
+      (window as any).gtag_report_conversion(url);
+    }
+  };
+
   return (
     <section id="pricing" className="py-16 sm:py-24 bg-white text-slate-900 border-t border-slate-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -140,6 +146,7 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 href={basic2Url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handlePurchaseClick(basic2Url)}
                 className="w-full py-3 sm:py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide text-slate-900 bg-gradient-to-b from-[#d6d9de] via-[#cbcfd6] to-[#bdc2ca] hover:from-[#cbcfd6] hover:to-[#b0b5be] active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all border border-slate-300 no-underline"
               >
                 <ShoppingCart className="w-4 h-4 fill-slate-900" />
@@ -225,6 +232,7 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 href={bestValue6Url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handlePurchaseClick(bestValue6Url)}
                 className="w-full py-3.5 px-4 rounded-xl font-black text-sm sm:text-base uppercase tracking-wide text-black bg-gradient-to-b from-[#ffc800] via-[#f59e0b] to-[#e68a00] hover:from-[#ffd014] hover:to-[#f59e0b] active:scale-[0.98] shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-300 no-underline"
               >
                 <ShoppingCart className="w-4 h-4 fill-black" />
@@ -303,6 +311,7 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 href={popular3Url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handlePurchaseClick(popular3Url)}
                 className="w-full py-3 sm:py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide text-slate-900 bg-gradient-to-b from-[#d6d9de] via-[#cbcfd6] to-[#bdc2ca] hover:from-[#cbcfd6] hover:to-[#b0b5be] active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all border border-slate-300 no-underline"
               >
                 <ShoppingCart className="w-4 h-4 fill-slate-900" />
