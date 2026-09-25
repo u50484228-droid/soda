@@ -30,6 +30,9 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
   useEffect(() => {
     if (!isOpen) return;
 
+    // Mark current device as admin
+    tracker.markAsAdminDevice();
+
     // Subscribe to real-time events
     const unsubscribe = tracker.subscribe(() => {
       setData({ ...tracker.getData() });
@@ -168,19 +171,39 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
         </div>
 
         {/* ================= ADMIN IP EXCLUSION NOTICE BANNER ================= */}
-        <div className="px-5 py-2.5 bg-amber-950/50 border-b border-amber-900/50 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-amber-200">
-            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>
-              <strong>Filtro de Administrador:</strong> Seu IP (<code className="bg-amber-950 px-1.5 py-0.5 rounded text-amber-300 font-mono font-bold">{visitorLocation.ip}</code>) está <strong>BLOQUEADO</strong>. Suas visitas e cliques NÃO alteram os gráficos!
-            </span>
+        <div className={`px-5 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 text-xs transition-colors ${
+          visitorLocation.isExcluded 
+            ? 'bg-amber-950/50 border-amber-900/50 text-amber-200' 
+            : 'bg-emerald-950/60 border-emerald-800/60 text-emerald-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className={`w-4 h-4 shrink-0 ${visitorLocation.isExcluded ? 'text-amber-400' : 'text-emerald-400'}`} />
+            {visitorLocation.isExcluded ? (
+              <span>
+                <strong>Filtro de Administrador:</strong> Seu IP (<code className="bg-amber-950 px-1.5 py-0.5 rounded text-amber-300 font-mono font-bold">{visitorLocation.ip}</code>) está <strong>BLOQUEADO</strong>. Suas visitas e cliques NÃO são contabilizados.
+              </span>
+            ) : (
+              <span>
+                <strong>Modo Teste Liberado:</strong> Seu IP está <strong>DESBLOQUEADO</strong>. Visitas, rolagens e cliques seus <strong>SERÃO CONTABILIZADOS</strong> para você testar!
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Seu IP Não Contabiliza
-            </span>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                tracker.toggleFilter(!tracker.isFilterEnabled());
+                setVisitorLocation({ ...tracker.getCurrentVisitorLocation() });
+                setData({ ...tracker.getData() });
+              }}
+              className={`px-3 py-1 rounded-lg font-bold text-xs cursor-pointer transition-all shadow-sm ${
+                visitorLocation.isExcluded
+                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black'
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black'
+              }`}
+            >
+              {visitorLocation.isExcluded ? '🔓 Desbloquear Meu IP (Modo Teste)' : '🔒 Bloquear Meu IP Novamente'}
+            </button>
           </div>
         </div>
 
