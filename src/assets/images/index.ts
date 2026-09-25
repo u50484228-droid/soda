@@ -24,6 +24,7 @@ import bonusEbooksImg from './synaptigen_bonus_ebooks_1790284421753.jpg';
 
 import sodatideBotanicalTableImg from './sodatide_fresh_botanical_table_1790293021657.jpg';
 import sodatideWomanMorningImg from './sodatide_woman_smiling_morning_1790293037143.jpg';
+import sodatideLabPurityImg from './sodatide_lab_purity_test_1790325265184.jpg';
 
 export {
   konjacRootImg,
@@ -42,6 +43,7 @@ export {
   sodatideLifestyleImg,
   sodatideBotanicalTableImg,
   sodatideWomanMorningImg,
+  sodatideLabPurityImg,
   guarantee60SealImg,
   guaranteeGoldSealImg,
   guarantee180SealImg,

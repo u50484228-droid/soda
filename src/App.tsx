@@ -3,6 +3,7 @@ import { SodaHeader } from './components/SodaHeader';
 import { SodaHero } from './components/SodaHero';
 import { SodaStory } from './components/SodaStory';
 import { SodaIngredients } from './components/SodaIngredients';
+import { SodaEfficacy } from './components/SodaEfficacy';
 import { SodaPricing } from './components/SodaPricing';
 import { SodaGuarantee } from './components/SodaGuarantee';
 import { SodaReferences } from './components/SodaReferences';
@@ -34,6 +35,9 @@ export default function App() {
 
         {/* 7 Clinical Ingredients Matrix */}
         <SodaIngredients />
+
+        {/* Clinical Efficacy, Proven Results & Laboratory Standards */}
+        <SodaEfficacy onOrderClick={scrollToPricing} />
 
         {/* 3 Package Pricing Grid & Trust Seals */}
         <SodaPricing />

@@ -50,7 +50,7 @@ export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
                     : 'hover:text-slate-900'
                 }`}
               >
-                🌿 Ingredientes & Frasco
+                🌿 Formula & Ingredients
               </button>
               <button
                 onClick={() => setSelectedPhoto('lifestyle')}
@@ -60,7 +60,7 @@ export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
                     : 'hover:text-slate-900'
                 }`}
               >
-                ☀️ Rotina Matinal
+                ☀️ Morning Routine
               </button>
             </div>
           </div>
