@@ -258,8 +258,8 @@ class RealAnalyticsTracker {
         } else {
           this.syncToFirestore();
         }
-      }, (err) => {
-        console.warn('Firestore snapshot error:', err);
+      }, () => {
+        // Graceful fallback for offline mode
       });
 
       // Live listener to recent events collection
@@ -281,11 +281,11 @@ class RealAnalyticsTracker {
         this.data.recentEvents = events;
         this.notifyListeners();
       }, () => {
-        // Fallback
+        // Graceful fallback for offline mode
       });
 
-    } catch (e) {
-      console.warn('Firestore init fallback:', e);
+    } catch {
+      // Graceful fallback
     }
   }
 
@@ -618,22 +618,45 @@ class RealAnalyticsTracker {
       }
     }, true);
 
-    // Dwell duration tracking (only for legitimate visitors)
-    setInterval(() => {
-      if (!this.isExcluded()) {
-        this.data.totalTimeSeconds += 5;
-        this.saveLocalCache();
+    // Dwell duration tracking (batched every 30s to avoid Firestore write congestion)
+    let pendingDwellSeconds = 0;
+    const flushDwellTime = () => {
+      if (pendingDwellSeconds > 0 && !this.isExcluded()) {
+        const toFlush = pendingDwellSeconds;
+        pendingDwellSeconds = 0;
         try {
           const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
           updateDoc(summaryRef, {
-            totalTimeSeconds: increment(5),
+            totalTimeSeconds: increment(toFlush),
             lastUpdated: new Date().toISOString()
           }).catch(() => {});
         } catch {
           // Ignore
         }
       }
+    };
+
+    setInterval(() => {
+      if (!this.isExcluded()) {
+        this.data.totalTimeSeconds += 5;
+        pendingDwellSeconds += 5;
+        this.saveLocalCache();
+
+        if (pendingDwellSeconds >= 30) {
+          flushDwellTime();
+        }
+      }
     }, 5000);
+
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        flushDwellTime();
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      flushDwellTime();
+    });
   }
 
   private async handleScrollMilestone(depth: number) {
