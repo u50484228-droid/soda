@@ -56,6 +56,10 @@ export const SodaHero: React.FC<SodaHeroProps> = ({ onScrollToPricing }) => {
               <img
                 src={sodatidePedestalBottleImg}
                 alt="SodaTide Metabolic and Digestive Support Bottle"
+                loading="eager"
+                // @ts-ignore
+                fetchPriority="high"
+                decoding="async"
                 referrerPolicy="no-referrer"
                 style={{
                   WebkitMaskImage: 'radial-gradient(ellipse 88% 88% at 50% 50%, black 65%, rgba(0, 0, 0, 0.8) 78%, transparent 94%)',

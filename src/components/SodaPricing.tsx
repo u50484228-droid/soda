@@ -111,6 +111,8 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 <img
                   src={sodatideTwoBottlesImg}
                   alt="SodaTide 2 Bottles"
+                  loading="lazy"
+                  decoding="async"
                   referrerPolicy="no-referrer"
                   className="max-h-full max-w-full object-contain"
                 />
@@ -190,6 +192,8 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 <img
                   src={sodatideSixBottlesImg}
                   alt="SodaTide 6 Bottles Bundle"
+                  loading="lazy"
+                  decoding="async"
                   referrerPolicy="no-referrer"
                   className="max-h-full max-w-full object-contain"
                 />
@@ -280,6 +284,8 @@ export const SodaPricing: React.FC<SodaPricingProps> = () => {
                 <img
                   src={sodatideThreeBottlesImg}
                   alt="SodaTide 3 Bottles"
+                  loading="lazy"
+                  decoding="async"
                   referrerPolicy="no-referrer"
                   className="max-h-full max-w-full object-contain"
                 />

@@ -18,6 +18,8 @@ export const SodaGuarantee: React.FC<SodaGuaranteeProps> = ({ onScrollToPricing 
             <img
               src={guarantee60SealImg}
               alt="60-Day 100% Money Back Guarantee Seal"
+              loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain filter drop-shadow-xl"
             />

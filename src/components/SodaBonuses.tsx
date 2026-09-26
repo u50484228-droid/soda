@@ -34,6 +34,8 @@ export const SodaBonuses: React.FC<SodaBonusesProps> = ({ onOrderClick }) => {
               <img
                 src={bonusEbooksImg}
                 alt="3 Free Gut & Metabolic Health eBooks"
+                loading="lazy"
+                decoding="async"
                 referrerPolicy="no-referrer"
                 className="w-full h-auto object-contain rounded-2xl drop-shadow-2xl"
               />

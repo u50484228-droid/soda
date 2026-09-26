@@ -308,6 +308,8 @@ export const SodaEfficacy: React.FC<SodaEfficacyProps> = ({ onOrderClick }) => {
                 <img 
                   src={doctorEndorsementImg} 
                   alt="Dr. Elizabeth Vance, Board Certified Gastroenterology Specialist"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -350,6 +352,8 @@ export const SodaEfficacy: React.FC<SodaEfficacyProps> = ({ onOrderClick }) => {
                 <img 
                   src={sodatideLabPurityImg} 
                   alt="Certified HPLC Lab Purity Test on SodaTide"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-48 sm:h-52 object-cover"
                 />
                 <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-900 px-3 py-1.5 rounded-xl text-[11px] font-black shadow-md flex items-center gap-1.5">

@@ -35,6 +35,8 @@ export const SodaStory: React.FC<SodaStoryProps> = ({ onOrderClick }) => {
               <img
                 src={selectedPhoto === 'botanical' ? sodatideBotanicalTableImg : sodatideWomanMorningImg}
                 alt={selectedPhoto === 'botanical' ? 'SodaTide formula with fresh ginger, mint, green tea and pure capsules' : 'SodaTide daily healthy morning routine'}
+                loading="lazy"
+                decoding="async"
                 referrerPolicy="no-referrer"
                 className="w-full h-auto object-cover rounded-2xl hover:scale-102 transition-transform duration-500"
               />
