@@ -11,6 +11,7 @@ import { SodaFaq } from './components/SodaFaq';
 import { SodaFooter } from './components/SodaFooter';
 import { SodaPolicyModal, SodaPolicyType } from './components/SodaPolicyModal';
 import { SodaAnalyticsModal } from './components/SodaAnalyticsModal';
+import { SodaCookiePopup } from './components/SodaCookiePopup';
 
 export default function App() {
   const [activePolicy, setActivePolicy] = useState<SodaPolicyType | null>(null);
@@ -71,6 +72,9 @@ export default function App() {
         isOpen={isAnalyticsOpen}
         onClose={() => setIsAnalyticsOpen(false)}
       />
+
+      {/* Floating Cookie Consent Modal with Translucent Backdrop */}
+      <SodaCookiePopup />
     </div>
   );
 }
