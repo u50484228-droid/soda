@@ -6,6 +6,7 @@ import {
   MousePointerClick, 
   ArrowDownCircle, 
   ShieldCheck, 
+  ShieldAlert,
   Users, 
   RefreshCw, 
   RotateCcw,
@@ -48,6 +49,21 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
   const [isResetConfirm, setIsResetConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [isMyIpBlocked, setIsMyIpBlocked] = useState(tracker.isCurrentIpBlocked());
+  const [blockToast, setBlockToast] = useState<string | null>(null);
+
+  const detectedIp = visitorLocation.ip || (sessions[0]?.ip && sessions[0].ip !== 'Visitante Online' && sessions[0].ip !== 'Identificando...' ? sessions[0].ip : '168.205.108.132');
+
+  const handleToggleBlockMyIp = () => {
+    const nowBlocked = tracker.toggleBlockCurrentIp();
+    setIsMyIpBlocked(nowBlocked);
+    if (nowBlocked) {
+      setBlockToast(`🛡️ Seu IP (${detectedIp}) foi BLOQUEADO com sucesso! Suas futuras visitas e cliques não serão mais contabilizados no painel.`);
+    } else {
+      setBlockToast(`🔓 Seu IP (${detectedIp}) foi DESBLOQUEADO! Suas visitas de teste voltarão a ser contabilizadas.`);
+    }
+    setTimeout(() => setBlockToast(null), 5000);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -157,7 +173,30 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {/* Bloquear Meu IP Button */}
+            <button
+              onClick={handleToggleBlockMyIp}
+              className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer select-none ${
+                isMyIpBlocked
+                  ? 'bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-500/70 shadow-rose-950/40'
+                  : 'bg-gradient-to-r from-purple-900 to-indigo-900 hover:from-purple-850 hover:to-indigo-850 text-white border border-purple-500/60 shadow-purple-950/40'
+              }`}
+              title={isMyIpBlocked ? "Seu IP está bloqueado. Clique para desbloquear e testar" : "Clique para bloquear seu IP e parar de gravar seus testes"}
+            >
+              {isMyIpBlocked ? (
+                <>
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>🔒 Meu IP Bloqueado ({detectedIp}) — Desbloquear</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>🛡️ Bloquear Meu IP ({detectedIp})</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={() => {
                 setData({ ...tracker.getData() });
@@ -177,6 +216,19 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
             </button>
           </div>
         </div>
+
+        {/* ================= BLOCK IP TOAST NOTIFICATION BANNER ================= */}
+        {blockToast && (
+          <div className="bg-gradient-to-r from-purple-950 via-slate-900 to-slate-950 border-b border-purple-600/40 p-3 px-5 text-xs text-purple-200 flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <span className="text-base">{isMyIpBlocked ? '🔒' : '🔓'}</span>
+              <span className="font-semibold">{blockToast}</span>
+            </div>
+            <button onClick={() => setBlockToast(null)} className="text-slate-400 hover:text-white p-1 cursor-pointer">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* ================= TOP METRICS CARDS (FOCUSED ON VISITOR BEHAVIOR) ================= */}
         <div className="p-4 sm:p-5 bg-slate-950/50 border-b border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -451,9 +503,34 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
                                 </span>
 
                                 {session.ip && session.ip !== 'Visitante Online' && session.ip !== 'Identificando...' && (
-                                  <span className="text-[10px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                                    IP: {session.ip}
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                                      IP: {session.ip}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isMyIpBlocked && detectedIp === session.ip) {
+                                          tracker.unblockCurrentIp(session.ip);
+                                          setIsMyIpBlocked(false);
+                                          setBlockToast(`🔓 IP ${session.ip} foi DESBLOQUEADO.`);
+                                        } else {
+                                          tracker.blockCurrentIp(session.ip);
+                                          setIsMyIpBlocked(true);
+                                          setBlockToast(`🛡️ IP ${session.ip} BLOQUEADO com sucesso! Suas visitas não serão gravadas.`);
+                                        }
+                                        setTimeout(() => setBlockToast(null), 5000);
+                                      }}
+                                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${
+                                        isMyIpBlocked && detectedIp === session.ip
+                                          ? 'bg-rose-950/80 text-rose-300 border-rose-700 hover:bg-rose-900'
+                                          : 'bg-slate-800 text-purple-300 border-purple-800/60 hover:bg-purple-900 hover:text-white'
+                                      }`}
+                                      title={isMyIpBlocked && detectedIp === session.ip ? "Desbloquear este IP" : "Bloquear este IP para não gravar mais suas visitas"}
+                                    >
+                                      {isMyIpBlocked && detectedIp === session.ip ? '🔒 Desbloquear' : '🛡️ Bloquear'}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
 

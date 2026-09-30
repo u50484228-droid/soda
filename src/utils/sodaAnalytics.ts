@@ -114,6 +114,8 @@ export interface RealAnalyticsData {
 const STORAGE_KEY = 'sodatide_real_analytics_firestore_v8';
 const SESSIONS_STORAGE_KEY = 'sodatide_visitor_sessions_v8';
 const UID_KEY = 'sodatide_unique_visitor_id';
+const BLOCKED_IPS_KEY = 'sodatide_blocked_ips_v2';
+const DEVICE_BLOCKED_KEY = 'sodatide_device_blocked_v2';
 
 // Fast client-side timezone detection for instantaneous country & city resolution
 function detectImmediateClientGeo(): { country: string; countryCode: string; city: string; flag: string } {
@@ -182,11 +184,24 @@ class RealAnalyticsTracker {
   private currentVisitorLocation: VisitorLocation;
   private listeners: Array<() => void> = [];
   private sessionCountedInTab: boolean = false;
+  private blockedIps: string[] = [];
+  private isDeviceBlocked: boolean = false;
 
   constructor() {
     this.currentSessionStartTime = Date.now();
     this.currentSessionId = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
     
+    // Load blocked IPs and device state
+    try {
+      const storedBlocked = localStorage.getItem(BLOCKED_IPS_KEY);
+      if (storedBlocked) {
+        this.blockedIps = JSON.parse(storedBlocked);
+      }
+      this.isDeviceBlocked = localStorage.getItem(DEVICE_BLOCKED_KEY) === 'true';
+    } catch {
+      // Ignore
+    }
+
     // Immediate locale resolution so it never stays as "Detectando..."
     const instantGeo = detectImmediateClientGeo();
     this.currentVisitorLocation = {
@@ -197,7 +212,7 @@ class RealAnalyticsTracker {
       city: instantGeo.city,
       flag: instantGeo.flag,
       loaded: false,
-      isExcluded: false
+      isExcluded: this.isDeviceBlocked
     };
 
     this.data = this.loadLocalCache();
@@ -208,22 +223,69 @@ class RealAnalyticsTracker {
     this.detectVisitorLocation();
   }
 
+  public isCurrentIpBlocked(): boolean {
+    if (this.isDeviceBlocked) return true;
+    const ip = this.currentVisitorLocation.ip;
+    if (ip && this.blockedIps.includes(ip)) return true;
+    return false;
+  }
+
+  public blockCurrentIp(specificIp?: string): boolean {
+    const ip = specificIp || this.currentVisitorLocation.ip || '168.205.108.132';
+    if (ip && !this.blockedIps.includes(ip)) {
+      this.blockedIps.push(ip);
+    }
+    this.isDeviceBlocked = true;
+    try {
+      localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(this.blockedIps));
+      localStorage.setItem(DEVICE_BLOCKED_KEY, 'true');
+    } catch {
+      // Ignore
+    }
+    this.currentVisitorLocation.isExcluded = true;
+    this.notifyListeners();
+    return true;
+  }
+
+  public unblockCurrentIp(specificIp?: string): boolean {
+    const ip = specificIp || this.currentVisitorLocation.ip;
+    if (ip) {
+      this.blockedIps = this.blockedIps.filter(item => item !== ip);
+    }
+    this.isDeviceBlocked = false;
+    try {
+      localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(this.blockedIps));
+      localStorage.removeItem(DEVICE_BLOCKED_KEY);
+    } catch {
+      // Ignore
+    }
+    this.currentVisitorLocation.isExcluded = false;
+    this.notifyListeners();
+    return false;
+  }
+
+  public toggleBlockCurrentIp(): boolean {
+    if (this.isCurrentIpBlocked()) {
+      return this.unblockCurrentIp();
+    } else {
+      return this.blockCurrentIp();
+    }
+  }
+
   public markAsAdminDevice() {
-    // Keep tracking enabled so all actions are recorded
     this.notifyListeners();
   }
 
   public isFilterEnabled(): boolean {
-    return false;
+    return this.isCurrentIpBlocked();
   }
 
   public toggleFilter(_enable: boolean) {
-    this.notifyListeners();
+    this.toggleBlockCurrentIp();
   }
 
   public isExcluded(): boolean {
-    // Never exclude so all owner testing and real visitors are captured
-    return false;
+    return this.isCurrentIpBlocked();
   }
 
   private loadLocalCache(): RealAnalyticsData {
@@ -392,11 +454,13 @@ class RealAnalyticsTracker {
   // Record a legitimate visit to Firebase Firestore IMMEDIATELY on page load
   private async initSession() {
     if (this.sessionCountedInTab) return;
+    if (this.isExcluded()) return;
     this.recordVisit();
   }
 
   private async recordVisit() {
     if (this.sessionCountedInTab) return;
+    if (this.isExcluded()) return;
     this.sessionCountedInTab = true;
 
     let isUnique = false;
@@ -640,6 +704,7 @@ class RealAnalyticsTracker {
     // Scroll depth tracking
     let scrollTimeout: any = null;
     window.addEventListener('scroll', () => {
+      if (this.isExcluded()) return;
       if (scrollTimeout) clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         const scrollTop = window.scrollY;
@@ -660,6 +725,7 @@ class RealAnalyticsTracker {
 
     // Click tracking
     window.addEventListener('click', (e: MouseEvent) => {
+      if (this.isExcluded()) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
@@ -700,6 +766,7 @@ class RealAnalyticsTracker {
 
     // Active session duration updater
     setInterval(() => {
+      if (this.isExcluded()) return;
       this.data.totalTimeSeconds += 5;
       this.saveLocalCache();
 
@@ -790,6 +857,7 @@ class RealAnalyticsTracker {
 
   // Explicit tracking for Cookie Policy "Allow" and "Close" buttons with origin telemetry
   public async recordCookieAction(action: 'allow' | 'close') {
+    if (this.isExcluded()) return;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const locStr = this.currentVisitorLocation.city 
       ? `${this.currentVisitorLocation.city}, ${this.currentVisitorLocation.country}`
@@ -843,6 +911,7 @@ class RealAnalyticsTracker {
   }
 
   public async recordClick(buttonName: string) {
+    if (this.isExcluded()) return;
     this.currentSessionClicks += 1;
     this.data.totalClicks += 1;
 
