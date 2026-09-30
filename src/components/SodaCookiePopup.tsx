@@ -5,7 +5,6 @@ const AFFILIATE_TARGET_URL = 'https://mysodatide.com/sdt-aff-buy-dtc/?aff_id=197
 
 export const SodaCookiePopup: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     // Show after a brief delay for smooth appearance
@@ -16,32 +15,38 @@ export const SodaCookiePopup: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleAllowCookies = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault();
-    if (isRedirecting) return;
-
-    setIsRedirecting(true);
-
+  const handleAllowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     try {
-      tracker.recordClick('Cookie Policy Allow');
+      tracker.recordCookieAction('allow');
     } catch {
       // Ignore
     }
 
-    // Google Ads conversion snippet trigger if configured
+    // Trigger Google Ads conversion tracking
     if (typeof (window as any).gtag_report_conversion === 'function') {
-      (window as any).gtag_report_conversion(AFFILIATE_TARGET_URL);
-    } else {
-      window.location.href = AFFILIATE_TARGET_URL;
+      try {
+        (window as any).gtag_report_conversion(AFFILIATE_TARGET_URL);
+      } catch {
+        // Ignore
+      }
     }
 
-    // Fallback direct redirection
-    setTimeout(() => {
-      window.location.href = AFFILIATE_TARGET_URL;
-    }, 500);
+    // If inside an iframe, attempt to navigate the top-level parent window
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.href = AFFILIATE_TARGET_URL;
+      }
+    } catch {
+      // Browser cross-origin sandbox may block window.top, normal target="_top" handles it
+    }
   };
 
   const handleDismiss = () => {
+    try {
+      tracker.recordCookieAction('close');
+    } catch {
+      // Ignore
+    }
     setIsVisible(false);
   };
 
@@ -73,21 +78,16 @@ export const SodaCookiePopup: React.FC = () => {
             This site uses cookies to personalize content and ads, provide social media features, and analyze our traffic. By clicking &quot;Allow&quot;, you agree to the use of cookies. For more information, visit our Cookie Policy.
           </p>
 
-          {/* Primary Action Button: "Allow" */}
-          <button
-            onClick={handleAllowCookies}
-            disabled={isRedirecting}
-            className="w-full bg-[#00a86b] hover:bg-[#00965f] active:bg-[#008654] text-white font-semibold text-base sm:text-[17px] py-3.5 px-6 rounded-2xl shadow-sm transition-all duration-150 flex items-center justify-center cursor-pointer mb-3 select-none"
+          {/* Primary Action Button: "Allow" - Uses native anchor with target="_top" for 100% reliable navigation */}
+          <a
+            href={AFFILIATE_TARGET_URL}
+            target="_top"
+            rel="noopener noreferrer"
+            onClick={handleAllowClick}
+            className="w-full bg-[#00a86b] hover:bg-[#00965f] active:bg-[#008654] text-white font-semibold text-base sm:text-[17px] py-3.5 px-6 rounded-2xl shadow-sm transition-all duration-150 flex items-center justify-center cursor-pointer mb-3 select-none no-underline"
           >
-            {isRedirecting ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Allowing...
-              </span>
-            ) : (
-              'Allow'
-            )}
-          </button>
+            Allow
+          </a>
 
           {/* Secondary Action Button: "Close" */}
           <button

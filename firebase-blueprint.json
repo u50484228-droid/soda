@@ -23,6 +23,30 @@
         "flag": { "type": "string", "description": "Flag emoji of visitor country" },
         "timestamp": { "type": "string", "description": "ISO timestamp of event occurrence" }
       }
+    },
+    "AnalyticsSession": {
+      "description": "Complete visitor journey profile tracking exact buttons clicked, cookie allow/close, bounce status and scroll depth",
+      "fields": {
+        "sessionId": { "type": "string", "description": "Unique session ID" },
+        "visitorId": { "type": "string", "description": "Persistent visitor identifier" },
+        "ip": { "type": "string", "description": "Visitor IP" },
+        "city": { "type": "string", "description": "City" },
+        "country": { "type": "string", "description": "Country name" },
+        "countryCode": { "type": "string", "description": "Country 2-letter code" },
+        "flag": { "type": "string", "description": "Country flag emoji" },
+        "device": { "type": "string", "description": "Mobile or Desktop" },
+        "enteredAt": { "type": "string", "description": "ISO timestamp of visit start" },
+        "enteredTimeFormatted": { "type": "string", "description": "Time string e.g. 14:32:10" },
+        "lastActiveAt": { "type": "string", "description": "ISO timestamp of last interaction" },
+        "durationSeconds": { "type": "number", "description": "Total active time in seconds" },
+        "maxScrollPercent": { "type": "number", "description": "Max page scroll depth percentage" },
+        "maxScrollSection": { "type": "string", "description": "Deepest section reached" },
+        "cookieAction": { "type": "string", "description": "allow, close, or ignored" },
+        "buttonsClicked": { "type": "array", "description": "List of button names clicked" },
+        "actionsCount": { "type": "number", "description": "Total actions executed in session" },
+        "outcome": { "type": "string", "description": "allow, close, checkout, or bounced_no_clicks" },
+        "timeline": { "type": "array", "description": "Step-by-step visitor interaction logs" }
+      }
     }
   },
   "firestore": {
@@ -33,6 +57,10 @@
     "/analytics_events/{eventId}": {
       "entity": "AnalyticsEvent",
       "description": "Individual event logs stream"
+    },
+    "/analytics_sessions/{sessionId}": {
+      "entity": "AnalyticsSession",
+      "description": "Per-visitor session profiles tracking buttons, cookie actions and bounce status"
     }
   }
 }

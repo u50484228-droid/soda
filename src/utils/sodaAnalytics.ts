@@ -1,11 +1,14 @@
 // SodaTide Real-Time Analytics Engine with Firebase Firestore Atomic Persistence
+// Supports Individual Per-Visitor Journey Logs, Buttons Clicked & Cookie Allow/Close Tracking
 
 import { 
   doc, 
   updateDoc, 
   increment, 
   getDoc, 
+  getDocs,
   setDoc,
+  deleteDoc,
   onSnapshot, 
   collection, 
   addDoc, 
@@ -34,6 +37,37 @@ export interface VisitorLocation {
   isExcluded: boolean;
 }
 
+export interface VisitorTimelineEvent {
+  time: string;
+  text: string;
+  type: 'visit' | 'click' | 'cookie' | 'scroll' | 'exit';
+}
+
+export interface VisitorSessionProfile {
+  id: string;
+  visitorId: string;
+  ip: string;
+  city: string;
+  country: string;
+  countryCode: string;
+  flag: string;
+  device: 'Mobile' | 'Desktop';
+  enteredAt: string;
+  enteredTimeFormatted: string;
+  lastActiveAt: string;
+  durationSeconds: number;
+  maxScrollPercent: number;
+  maxScrollSection: string;
+  cookieAction: 'allow' | 'close' | 'ignored';
+  buttonsClicked: Array<{
+    name: string;
+    timestamp: string;
+  }>;
+  actionsCount: number;
+  outcome: 'allow' | 'close' | 'checkout' | 'bounced_no_clicks';
+  timeline: VisitorTimelineEvent[];
+}
+
 export interface RealAnalyticsData {
   isRealOnly: boolean;
   totalVisits: number;
@@ -43,6 +77,9 @@ export interface RealAnalyticsData {
   maxScrollDepthPercent: number;
   totalClicks: number;
   checkoutClicks: number;
+  cookieAllowClicks: number;
+  cookieCloseClicks: number;
+  bouncedVisits: number;
   countries: { [countryName: string]: CountryStat };
   buttonClicks: {
     [buttonName: string]: {
@@ -69,7 +106,8 @@ export interface RealAnalyticsData {
   }>;
 }
 
-const STORAGE_KEY = 'sodatide_real_analytics_firestore_v6';
+const STORAGE_KEY = 'sodatide_real_analytics_firestore_v7';
+const SESSIONS_STORAGE_KEY = 'sodatide_visitor_sessions_v7';
 const UID_KEY = 'sodatide_unique_visitor_id';
 const ADMIN_DEVICE_KEY = 'sodatide_is_admin_device';
 const ADMIN_FILTER_TOGGLE_KEY = 'sodatide_admin_filter_toggle';
@@ -86,6 +124,9 @@ const INITIAL_REAL_DATA: RealAnalyticsData = {
   maxScrollDepthPercent: 0,
   totalClicks: 0,
   checkoutClicks: 0,
+  cookieAllowClicks: 0,
+  cookieCloseClicks: 0,
+  bouncedVisits: 0,
   countries: {},
   buttonClicks: {},
   scrollMilestones: {
@@ -107,6 +148,9 @@ class RealAnalyticsTracker {
   private isFirebaseConnected: boolean = false;
   private isFilterActive: boolean = true;
   private isKnownAdminDevice: boolean = false;
+  private currentSessionId: string;
+  private currentSessionProfile: VisitorSessionProfile | null = null;
+  private visitorSessions: VisitorSessionProfile[] = [];
   private currentVisitorLocation: VisitorLocation = {
     ip: '',
     country: 'Detectando...',
@@ -122,8 +166,10 @@ class RealAnalyticsTracker {
 
   constructor() {
     this.currentSessionStartTime = Date.now();
+    this.currentSessionId = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
     this.initAdminDetection();
     this.data = this.loadLocalCache();
+    this.visitorSessions = this.loadLocalSessions();
     this.initFirestoreSync();
     this.initSession();
     this.initListeners();
@@ -132,71 +178,37 @@ class RealAnalyticsTracker {
 
   private initAdminDetection() {
     try {
-      // Check if this specific browser is marked as admin
-      const isDeviceAdmin = localStorage.getItem(ADMIN_DEVICE_KEY) === 'true';
-      this.isKnownAdminDevice = isDeviceAdmin;
-
-      // Filter is enabled by default for admin
-      const toggleSetting = localStorage.getItem(ADMIN_FILTER_TOGGLE_KEY);
-      this.isFilterActive = toggleSetting !== 'false';
-
-      this.currentVisitorLocation.isExcluded = this.isExcluded();
+      localStorage.removeItem(ADMIN_DEVICE_KEY);
+      localStorage.removeItem(ADMIN_FILTER_TOGGLE_KEY);
+      this.isKnownAdminDevice = false;
+      this.isFilterActive = false;
+      this.currentVisitorLocation.isExcluded = false;
     } catch {
       this.isKnownAdminDevice = false;
-      this.isFilterActive = true;
+      this.isFilterActive = false;
+      this.currentVisitorLocation.isExcluded = false;
     }
   }
 
-  // Marks this device as admin (called when admin modal is opened)
   public markAsAdminDevice() {
-    this.isKnownAdminDevice = true;
-    try {
-      localStorage.setItem(ADMIN_DEVICE_KEY, 'true');
-    } catch {
-      // Ignore
-    }
-    this.currentVisitorLocation.isExcluded = this.isExcluded();
+    // Keep tracking enabled so testing records seamlessly
+    this.isKnownAdminDevice = false;
+    this.currentVisitorLocation.isExcluded = false;
     this.notifyListeners();
   }
 
   public isFilterEnabled(): boolean {
-    return this.isFilterActive;
+    return false;
   }
 
-  public toggleFilter(enable: boolean) {
-    this.isFilterActive = enable;
-    try {
-      localStorage.setItem(ADMIN_FILTER_TOGGLE_KEY, enable ? 'true' : 'false');
-    } catch {
-      // Ignore
-    }
-    this.currentVisitorLocation.isExcluded = this.isExcluded();
+  public toggleFilter(_enable: boolean) {
+    this.isFilterActive = false;
+    this.currentVisitorLocation.isExcluded = false;
     this.notifyListeners();
-
-    // If admin unlocks themselves for testing and haven't counted this session yet, record it!
-    if (!enable && !this.sessionCountedInTab) {
-      this.recordVisit();
-    }
   }
 
-  // Determines whether the current user is excluded from analytics
   public isExcluded(): boolean {
-    // If filter toggle is turned OFF (Test Mode), nobody is excluded!
-    if (!this.isFilterActive) {
-      return false;
-    }
-
-    // If device is marked as admin, exclude it
-    if (this.isKnownAdminDevice) {
-      return true;
-    }
-
-    // If detected IP matches the owner IP, exclude it
-    if (this.currentVisitorLocation.ip && this.currentVisitorLocation.ip === OWNER_IP) {
-      return true;
-    }
-
-    // Otherwise, this is a genuine visitor - DO NOT EXCLUDE!
+    // Always return false so every visitor and owner test session is recorded!
     return false;
   }
 
@@ -223,6 +235,39 @@ class RealAnalyticsTracker {
     }
   }
 
+  private loadLocalSessions(): VisitorSessionProfile[] {
+    try {
+      const stored = localStorage.getItem(SESSIONS_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch {
+      // Fallback
+    }
+    return [];
+  }
+
+  private saveLocalSessions() {
+    try {
+      localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(this.visitorSessions.slice(0, 50)));
+    } catch {
+      // Ignore
+    }
+  }
+
+  private getVisitorUid(): string {
+    try {
+      let uid = localStorage.getItem(UID_KEY);
+      if (!uid) {
+        uid = 'v_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+        localStorage.setItem(UID_KEY, uid);
+      }
+      return uid;
+    } catch {
+      return 'v_' + Math.random().toString(36).substring(2, 9);
+    }
+  }
+
   // Real-time Firestore synchronization
   private async initFirestoreSync() {
     try {
@@ -242,6 +287,9 @@ class RealAnalyticsTracker {
             maxScrollDepthPercent: remote.maxScrollDepthPercent ?? 0,
             totalClicks: remote.totalClicks ?? 0,
             checkoutClicks: remote.checkoutClicks ?? 0,
+            cookieAllowClicks: remote.cookieAllowClicks ?? 0,
+            cookieCloseClicks: remote.cookieCloseClicks ?? 0,
+            bouncedVisits: remote.bouncedVisits ?? 0,
             countries: remote.countries || {},
             buttonClicks: remote.buttonClicks || {},
             scrollMilestones: remote.scrollMilestones || {
@@ -259,7 +307,7 @@ class RealAnalyticsTracker {
           this.syncToFirestore();
         }
       }, () => {
-        // Graceful fallback for offline mode
+        // Fallback offline
       });
 
       // Live listener to recent events collection
@@ -280,9 +328,23 @@ class RealAnalyticsTracker {
         });
         this.data.recentEvents = events;
         this.notifyListeners();
-      }, () => {
-        // Graceful fallback for offline mode
-      });
+      }, () => {});
+
+      // Live listener to individual visitor sessions collection
+      const sessionsRef = collection(db, 'analytics_sessions');
+      const qSessions = query(sessionsRef, orderBy('lastActiveAt', 'desc'), limit(60));
+      onSnapshot(qSessions, (snapshot) => {
+        const sessions: VisitorSessionProfile[] = [];
+        snapshot.forEach((d) => {
+          const item = d.data() as VisitorSessionProfile;
+          sessions.push({ ...item, id: d.id });
+        });
+        if (sessions.length > 0) {
+          this.visitorSessions = sessions;
+          this.saveLocalSessions();
+          this.notifyListeners();
+        }
+      }, () => {});
 
     } catch {
       // Graceful fallback
@@ -301,6 +363,9 @@ class RealAnalyticsTracker {
         maxScrollDepthPercent: this.data.maxScrollDepthPercent,
         totalClicks: this.data.totalClicks,
         checkoutClicks: this.data.checkoutClicks,
+        cookieAllowClicks: this.data.cookieAllowClicks,
+        cookieCloseClicks: this.data.cookieCloseClicks,
+        bouncedVisits: this.data.bouncedVisits,
         countries: this.data.countries,
         buttonClicks: this.data.buttonClicks,
         scrollMilestones: this.data.scrollMilestones,
@@ -314,13 +379,8 @@ class RealAnalyticsTracker {
 
   // Record a legitimate visit to Firebase Firestore IMMEDIATELY on page load
   private async initSession() {
-    // If already counted in this tab, don't count duplicate
     if (this.sessionCountedInTab) return;
-
-    // Check if this user is excluded right now
-    if (this.isExcluded()) {
-      return;
-    }
+    if (this.isExcluded()) return;
 
     this.recordVisit();
   }
@@ -329,7 +389,6 @@ class RealAnalyticsTracker {
     if (this.sessionCountedInTab) return;
     this.sessionCountedInTab = true;
 
-    // Check unique visitor via localStorage
     let isUnique = false;
     try {
       let uid = localStorage.getItem(UID_KEY);
@@ -342,16 +401,55 @@ class RealAnalyticsTracker {
       isUnique = true;
     }
 
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const device = typeof window !== 'undefined' && window.innerWidth < 768 ? 'Mobile' : 'Desktop';
+
     // Increment local state immediately
     this.data.totalVisits += 1;
     if (isUnique) {
       this.data.uniqueVisitors += 1;
     }
     this.data.sessionCountForAvg += 1;
+    // Default outcome is bounced until user clicks a button
+    this.data.bouncedVisits += 1;
     this.saveLocalCache();
+
+    // Create current visitor session profile
+    this.currentSessionProfile = {
+      id: this.currentSessionId,
+      visitorId: this.getVisitorUid(),
+      ip: this.currentVisitorLocation.ip || 'Visitante Online',
+      city: this.currentVisitorLocation.city || '',
+      country: this.currentVisitorLocation.country !== 'Detectando...' ? this.currentVisitorLocation.country : 'Detectando...',
+      countryCode: this.currentVisitorLocation.countryCode || '',
+      flag: this.currentVisitorLocation.flag || '🌍',
+      device,
+      enteredAt: now.toISOString(),
+      enteredTimeFormatted: timeStr,
+      lastActiveAt: now.toISOString(),
+      durationSeconds: 0,
+      maxScrollPercent: 0,
+      maxScrollSection: 'Hero (Início da Página)',
+      cookieAction: 'ignored',
+      buttonsClicked: [],
+      actionsCount: 0,
+      outcome: 'bounced_no_clicks',
+      timeline: [
+        {
+          time: timeStr,
+          text: `🚀 Entrou na página (${device})`,
+          type: 'visit'
+        }
+      ]
+    };
+
+    // Add to local sessions
+    this.visitorSessions = [this.currentSessionProfile, ...this.visitorSessions.filter(s => s.id !== this.currentSessionId)];
+    this.saveLocalSessions();
     this.notifyListeners();
 
-    // Persist visit to Firestore atomically
+    // Persist visit and session to Firestore atomically
     try {
       const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
       const snap = await getDoc(summaryRef);
@@ -360,15 +458,18 @@ class RealAnalyticsTracker {
           totalVisits: increment(1),
           uniqueVisitors: isUnique ? increment(1) : increment(0),
           sessionCountForAvg: increment(1),
+          bouncedVisits: increment(1),
           lastUpdated: new Date().toISOString()
         });
       } else {
         await this.syncToFirestore();
       }
 
+      // Add session doc in Firestore
+      const sessionRef = doc(db, 'analytics_sessions', this.currentSessionId);
+      await setDoc(sessionRef, this.currentSessionProfile);
+
       // Add live event
-      const device = typeof window !== 'undefined' && window.innerWidth < 768 ? 'Mobile' : 'Desktop';
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       await addDoc(collection(db, 'analytics_events'), {
         type: 'visit',
         detail: `Nova visita iniciada (${device})`,
@@ -382,6 +483,16 @@ class RealAnalyticsTracker {
     }
   }
 
+  private async updateCurrentSessionInFirestore() {
+    if (!this.currentSessionProfile || this.isExcluded()) return;
+    try {
+      const sessionRef = doc(db, 'analytics_sessions', this.currentSessionId);
+      await setDoc(sessionRef, this.currentSessionProfile, { merge: true });
+    } catch (e) {
+      // Fallback
+    }
+  }
+
   private getFlagEmoji(countryCode?: string): string {
     if (!countryCode || countryCode.length !== 2) return '🌍';
     const codePoints = countryCode
@@ -391,7 +502,6 @@ class RealAnalyticsTracker {
     return String.fromCodePoint(...codePoints);
   }
 
-  // Detect visitor's real IP and country asynchronously
   private async detectVisitorLocation() {
     try {
       const res = await fetch('https://ipwho.is/');
@@ -413,21 +523,27 @@ class RealAnalyticsTracker {
           isExcluded: this.isFilterActive && (this.isKnownAdminDevice || ip === OWNER_IP)
         };
 
-        // If the detected IP is the owner's IP, ensure marked as admin
         if (ip === OWNER_IP) {
           this.markAsAdminDevice();
           this.notifyListeners();
           return;
         }
 
-        // If not excluded, record their country and geo event!
+        // Update current session profile with detected geolocation
+        if (this.currentSessionProfile) {
+          this.currentSessionProfile.country = geo.country;
+          this.currentSessionProfile.countryCode = geo.country_code || '';
+          this.currentSessionProfile.city = geo.city || '';
+          this.currentSessionProfile.flag = flagEmoji;
+          this.currentSessionProfile.ip = ip;
+          this.updateCurrentSessionInFirestore();
+        }
+
         if (!this.isExcluded()) {
-          // If session hadn't been recorded yet, record it now
           if (!this.sessionCountedInTab) {
             this.recordVisit();
           }
 
-          // Register country
           const cName = geo.country;
           if (!this.data.countries[cName]) {
             this.data.countries[cName] = {
@@ -446,7 +562,6 @@ class RealAnalyticsTracker {
           this.saveLocalCache();
           this.notifyListeners();
 
-          // Sync country to Firestore
           try {
             const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
             await updateDoc(summaryRef, {
@@ -497,6 +612,15 @@ class RealAnalyticsTracker {
             return;
           }
 
+          if (this.currentSessionProfile) {
+            this.currentSessionProfile.country = geo2.countryName;
+            this.currentSessionProfile.countryCode = geo2.countryCode || '';
+            this.currentSessionProfile.city = geo2.cityName || '';
+            this.currentSessionProfile.flag = flag;
+            this.currentSessionProfile.ip = ip;
+            this.updateCurrentSessionInFirestore();
+          }
+
           if (!this.isExcluded()) {
             if (!this.sessionCountedInTab) {
               this.recordVisit();
@@ -519,23 +643,12 @@ class RealAnalyticsTracker {
 
             this.saveLocalCache();
             this.notifyListeners();
-
-            try {
-              const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
-              await updateDoc(summaryRef, {
-                countries: this.data.countries,
-                lastUpdated: new Date().toISOString()
-              });
-            } catch {
-              // Ignore
-            }
           }
 
           this.notifyListeners();
           return;
         }
       } catch {
-        // If GeoIP is completely blocked by browser, it still recorded the visit!
         this.currentVisitorLocation = {
           ip: '',
           country: 'Visitante Online',
@@ -570,6 +683,7 @@ class RealAnalyticsTracker {
                 this.data.maxScrollDepthPercent = depth;
               }
               this.handleScrollMilestone(depth);
+              this.updateSessionScroll(depth);
             }
           }
         }
@@ -618,65 +732,93 @@ class RealAnalyticsTracker {
       }
     }, true);
 
-    // Dwell duration tracking (batched every 30s to avoid Firestore write congestion)
-    let pendingDwellSeconds = 0;
-    const flushDwellTime = () => {
-      if (pendingDwellSeconds > 0 && !this.isExcluded()) {
-        const toFlush = pendingDwellSeconds;
-        pendingDwellSeconds = 0;
-        try {
-          const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
-          updateDoc(summaryRef, {
-            totalTimeSeconds: increment(toFlush),
-            lastUpdated: new Date().toISOString()
-          }).catch(() => {});
-        } catch {
-          // Ignore
-        }
-      }
-    };
-
+    // Active session duration updater
     setInterval(() => {
       if (!this.isExcluded()) {
         this.data.totalTimeSeconds += 5;
-        pendingDwellSeconds += 5;
         this.saveLocalCache();
 
-        if (pendingDwellSeconds >= 30) {
-          flushDwellTime();
+        if (this.currentSessionProfile) {
+          this.currentSessionProfile.durationSeconds += 5;
+          this.currentSessionProfile.lastActiveAt = new Date().toISOString();
+          // Update in visitor sessions list
+          this.visitorSessions = this.visitorSessions.map(s => 
+            s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
+          );
+          this.saveLocalSessions();
+          this.notifyListeners();
+
+          // Sync to Firestore periodically
+          if (this.currentSessionProfile.durationSeconds % 15 === 0) {
+            this.updateCurrentSessionInFirestore();
+          }
         }
       }
     }, 5000);
 
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        flushDwellTime();
+    // Flush on page unload / leave
+    window.addEventListener('beforeunload', () => {
+      if (this.currentSessionProfile && !this.isExcluded()) {
+        this.currentSessionProfile.lastActiveAt = new Date().toISOString();
+        this.updateCurrentSessionInFirestore();
       }
-    });
-
-    window.addEventListener('pagehide', () => {
-      flushDwellTime();
     });
   }
 
-  private async handleScrollMilestone(depth: number) {
-    if (this.isExcluded()) return;
+  private updateSessionScroll(depth: number) {
+    if (!this.currentSessionProfile) return;
+    
+    let sectionName = 'Hero (Início da Página)';
+    if (depth > 85) sectionName = 'Garantia & Rodapé';
+    else if (depth > 65) sectionName = 'Tabela de Preços & Ofertas';
+    else if (depth > 40) sectionName = 'Resultados Clínicos & Eficácia';
+    else if (depth > 20) sectionName = 'Ingredientes & Mecanismo';
 
-    let milestoneKey: keyof typeof this.data.scrollMilestones | null = null;
+    this.currentSessionProfile.maxScrollPercent = depth;
+    this.currentSessionProfile.maxScrollSection = sectionName;
+
+    // Add milestone event to session timeline every 25%
+    const milestones = [25, 50, 75, 100];
+    const prevDepth = this.currentSessionProfile.maxScrollPercent;
+    for (const m of milestones) {
+      if (depth >= m && prevDepth < m) {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        this.currentSessionProfile.timeline.push({
+          time: timeStr,
+          text: `📜 Rolou até ${m}% (${sectionName})`,
+          type: 'scroll'
+        });
+        break;
+      }
+    }
+
+    this.visitorSessions = this.visitorSessions.map(s => 
+      s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
+    );
+    this.saveLocalSessions();
+    this.notifyListeners();
+    this.updateCurrentSessionInFirestore();
+  }
+
+  private handleScrollMilestone(depth: number) {
+    let milestoneKey: keyof RealAnalyticsData['scrollMilestones'] | null = null;
     let label = '';
 
-    if (depth >= 90 && !this.data.scrollMilestones.footer) {
+    if (depth >= 90) {
       milestoneKey = 'footer';
-      label = 'Rodapé & Políticas (90%+)';
-    } else if (depth >= 75 && !this.data.scrollMilestones.pricing) {
+      label = 'Rodapé & Referências';
+    } else if (depth >= 75) {
+      milestoneKey = 'guarantee';
+      label = 'Garantia de 180 Dias';
+    } else if (depth >= 60) {
       milestoneKey = 'pricing';
-      label = 'Tabela de Preços & Ofertas (75%)';
-    } else if (depth >= 50 && !this.data.scrollMilestones.efficacy) {
+      label = 'Tabela de Preços';
+    } else if (depth >= 40) {
       milestoneKey = 'efficacy';
-      label = 'Eficácia Clínica & Laudos (50%)';
-    } else if (depth >= 25 && !this.data.scrollMilestones.ingredients) {
+      label = 'Resultados Clínicos';
+    } else if (depth >= 20) {
       milestoneKey = 'ingredients';
-      label = '7 Ingredientes & História (25%)';
+      label = 'Ingredientes Naturais';
     }
 
     if (milestoneKey) {
@@ -686,22 +828,66 @@ class RealAnalyticsTracker {
 
       try {
         const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
-        await updateDoc(summaryRef, {
+        updateDoc(summaryRef, {
           [`scrollMilestones.${milestoneKey}`]: increment(1),
           maxScrollDepthPercent: Math.max(this.data.maxScrollDepthPercent, depth),
           lastUpdated: new Date().toISOString()
-        });
-
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        await addDoc(collection(db, 'analytics_events'), {
-          type: 'scroll',
-          detail: `Rolou até: ${label} [${depth}%]`,
-          timestamp: timeStr,
-          createdAt: new Date().toISOString()
-        });
+        }).catch(() => {});
       } catch {
         // Fallback
       }
+    }
+  }
+
+  // Explicit tracking for Cookie Policy "Allow" and "Close" buttons
+  public async recordCookieAction(action: 'allow' | 'close') {
+    if (this.isExcluded()) return;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    if (action === 'allow') {
+      this.data.cookieAllowClicks = (this.data.cookieAllowClicks || 0) + 1;
+      this.recordClick('Cookie Policy: Allow');
+    } else {
+      this.data.cookieCloseClicks = (this.data.cookieCloseClicks || 0) + 1;
+      this.recordClick('Cookie Policy: Close');
+    }
+
+    if (this.currentSessionProfile) {
+      this.currentSessionProfile.cookieAction = action;
+      if (action === 'allow') {
+        this.currentSessionProfile.outcome = 'allow';
+        this.currentSessionProfile.timeline.push({
+          time: timeStr,
+          text: '🟢 Apertou "Allow" no Cookie Policy (Redirecionamento Oficial)',
+          type: 'cookie'
+        });
+      } else {
+        this.currentSessionProfile.outcome = 'close';
+        this.currentSessionProfile.timeline.push({
+          time: timeStr,
+          text: '🟡 Apertou "Close" no Cookie Policy (Fechou o aviso)',
+          type: 'cookie'
+        });
+      }
+
+      this.visitorSessions = this.visitorSessions.map(s => 
+        s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
+      );
+      this.saveLocalSessions();
+      this.notifyListeners();
+      this.updateCurrentSessionInFirestore();
+    }
+
+    try {
+      const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
+      await updateDoc(summaryRef, {
+        cookieAllowClicks: this.data.cookieAllowClicks,
+        cookieCloseClicks: this.data.cookieCloseClicks,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch {
+      // Fallback
     }
   }
 
@@ -715,7 +901,9 @@ class RealAnalyticsTracker {
 
     const isCheckout = buttonName.toLowerCase().includes('checkout') || 
                        buttonName.toLowerCase().includes('bottle') || 
-                       buttonName.toLowerCase().includes('frasco');
+                       buttonName.toLowerCase().includes('frasco') ||
+                       buttonName.toLowerCase().includes('buy');
+
     if (isCheckout) {
       this.data.checkoutClicks += 1;
     }
@@ -731,6 +919,40 @@ class RealAnalyticsTracker {
     this.data.buttonClicks[buttonName].count += 1;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     this.data.buttonClicks[buttonName].lastClicked = timeStr;
+
+    // Update current session profile
+    if (this.currentSessionProfile) {
+      this.currentSessionProfile.actionsCount += 1;
+      this.currentSessionProfile.buttonsClicked.push({
+        name: buttonName,
+        timestamp: timeStr
+      });
+
+      // Update outcome
+      if (isCheckout) {
+        this.currentSessionProfile.outcome = 'checkout';
+        this.currentSessionProfile.timeline.push({
+          time: timeStr,
+          text: `🛒 Clicou para Comprar: "${buttonName}"`,
+          type: 'click'
+        });
+      } else if (!buttonName.includes('Cookie Policy')) {
+        this.currentSessionProfile.timeline.push({
+          time: timeStr,
+          text: `🖱️ Clicou no botão: "${buttonName}"`,
+          type: 'click'
+        });
+        if (this.currentSessionProfile.outcome === 'bounced_no_clicks') {
+          this.currentSessionProfile.outcome = 'close';
+        }
+      }
+
+      this.visitorSessions = this.visitorSessions.map(s => 
+        s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
+      );
+      this.saveLocalSessions();
+      this.updateCurrentSessionInFirestore();
+    }
 
     this.saveLocalCache();
     this.notifyListeners();
@@ -772,6 +994,10 @@ class RealAnalyticsTracker {
     return this.data;
   }
 
+  public getVisitorSessions(): VisitorSessionProfile[] {
+    return this.visitorSessions;
+  }
+
   public getIsFirebaseConnected(): boolean {
     return this.isFirebaseConnected;
   }
@@ -807,6 +1033,9 @@ class RealAnalyticsTracker {
       maxScrollDepthPercent: 0,
       totalClicks: 0,
       checkoutClicks: 0,
+      cookieAllowClicks: 0,
+      cookieCloseClicks: 0,
+      bouncedVisits: 0,
       countries: {},
       buttonClicks: {},
       scrollMilestones: {
@@ -821,8 +1050,54 @@ class RealAnalyticsTracker {
     };
     this.currentSessionClicks = 0;
     this.sessionCountedInTab = false;
+    this.currentSessionProfile = null;
+    this.visitorSessions = [];
+
     this.saveLocalCache();
-    await this.syncToFirestore();
+    this.saveLocalSessions();
+
+    try {
+      const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
+      await setDoc(summaryRef, {
+        isRealOnly: true,
+        totalVisits: 0,
+        uniqueVisitors: 0,
+        totalTimeSeconds: 0,
+        sessionCountForAvg: 0,
+        maxScrollDepthPercent: 0,
+        totalClicks: 0,
+        checkoutClicks: 0,
+        cookieAllowClicks: 0,
+        cookieCloseClicks: 0,
+        bouncedVisits: 0,
+        countries: {},
+        buttonClicks: {},
+        scrollMilestones: {
+          hero: 0,
+          ingredients: 0,
+          efficacy: 0,
+          pricing: 0,
+          guarantee: 0,
+          footer: 0
+        },
+        lastUpdated: new Date().toISOString()
+      });
+
+      // Clear sessions in Firestore
+      const sessionsSnap = await getDocs(query(collection(db, 'analytics_sessions'), limit(100)));
+      const sessionDeletes = sessionsSnap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(sessionDeletes);
+
+      // Clear events in Firestore
+      const eventsSnap = await getDocs(query(collection(db, 'analytics_events'), limit(100)));
+      const eventDeletes = eventsSnap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(eventDeletes);
+
+      this.isFirebaseConnected = true;
+    } catch (err) {
+      console.warn('Firestore reset warning:', err);
+    }
+
     this.notifyListeners();
   }
 }
