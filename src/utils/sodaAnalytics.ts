@@ -1,5 +1,5 @@
 // SodaTide Real-Time Analytics Engine with Firebase Firestore Atomic Persistence
-// Supports Individual Per-Visitor Journey Logs, Buttons Clicked & Cookie Allow/Close Tracking
+// Supports Individual Per-Visitor Journey Logs, Buttons Clicked with Exact City & Country Telemetry
 
 import { 
   doc, 
@@ -43,6 +43,13 @@ export interface VisitorTimelineEvent {
   type: 'visit' | 'click' | 'cookie' | 'scroll' | 'exit';
 }
 
+export interface VisitorButtonClicked {
+  name: string;
+  timestamp: string;
+  location: string;
+  flag: string;
+}
+
 export interface VisitorSessionProfile {
   id: string;
   visitorId: string;
@@ -59,10 +66,7 @@ export interface VisitorSessionProfile {
   maxScrollPercent: number;
   maxScrollSection: string;
   cookieAction: 'allow' | 'close' | 'ignored';
-  buttonsClicked: Array<{
-    name: string;
-    timestamp: string;
-  }>;
+  buttonsClicked: VisitorButtonClicked[];
   actionsCount: number;
   outcome: 'allow' | 'close' | 'checkout' | 'bounced_no_clicks';
   timeline: VisitorTimelineEvent[];
@@ -86,6 +90,7 @@ export interface RealAnalyticsData {
       count: number;
       category: 'checkout' | 'cta' | 'navigation' | 'policy';
       lastClicked: string;
+      locations?: { [locName: string]: number };
     };
   };
   scrollMilestones: {
@@ -106,14 +111,39 @@ export interface RealAnalyticsData {
   }>;
 }
 
-const STORAGE_KEY = 'sodatide_real_analytics_firestore_v7';
-const SESSIONS_STORAGE_KEY = 'sodatide_visitor_sessions_v7';
+const STORAGE_KEY = 'sodatide_real_analytics_firestore_v8';
+const SESSIONS_STORAGE_KEY = 'sodatide_visitor_sessions_v8';
 const UID_KEY = 'sodatide_unique_visitor_id';
-const ADMIN_DEVICE_KEY = 'sodatide_is_admin_device';
-const ADMIN_FILTER_TOGGLE_KEY = 'sodatide_admin_filter_toggle';
 
-// Owner's IP to exclude from screenshot
-export const OWNER_IP = '168.205.108.132';
+// Fast client-side timezone detection for instantaneous country & city resolution
+function detectImmediateClientGeo(): { country: string; countryCode: string; city: string; flag: string } {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    if (tz.includes('Sao_Paulo')) return { country: 'Brasil', countryCode: 'BR', city: 'São Paulo', flag: '🇧🇷' };
+    if (tz.includes('Fortaleza')) return { country: 'Brasil', countryCode: 'BR', city: 'Fortaleza', flag: '🇧🇷' };
+    if (tz.includes('Recife')) return { country: 'Brasil', countryCode: 'BR', city: 'Recife', flag: '🇧🇷' };
+    if (tz.includes('Bahia') || tz.includes('Salvador')) return { country: 'Brasil', countryCode: 'BR', city: 'Salvador', flag: '🇧🇷' };
+    if (tz.includes('Manaus')) return { country: 'Brasil', countryCode: 'BR', city: 'Manaus', flag: '🇧🇷' };
+    if (tz.includes('Belem')) return { country: 'Brasil', countryCode: 'BR', city: 'Belém', flag: '🇧🇷' };
+    if (tz.includes('Cuiaba')) return { country: 'Brasil', countryCode: 'BR', city: 'Cuiabá', flag: '🇧🇷' };
+    if (tz.includes('Campo_Grande')) return { country: 'Brasil', countryCode: 'BR', city: 'Campo Grande', flag: '🇧🇷' };
+    if (tz.includes('Porto_Velho')) return { country: 'Brasil', countryCode: 'BR', city: 'Porto Velho', flag: '🇧🇷' };
+    if (tz.includes('Rio_Branco')) return { country: 'Brasil', countryCode: 'BR', city: 'Rio Branco', flag: '🇧🇷' };
+    if (tz.includes('Lisbon')) return { country: 'Portugal', countryCode: 'PT', city: 'Lisboa', flag: '🇵🇹' };
+    if (tz.includes('New_York')) return { country: 'United States', countryCode: 'US', city: 'New York', flag: '🇺🇸' };
+    if (tz.includes('Chicago')) return { country: 'United States', countryCode: 'US', city: 'Chicago', flag: '🇺🇸' };
+    if (tz.includes('Los_Angeles')) return { country: 'United States', countryCode: 'US', city: 'Los Angeles', flag: '🇺🇸' };
+    if (tz.includes('Miami')) return { country: 'United States', countryCode: 'US', city: 'Miami', flag: '🇺🇸' };
+    if (tz.includes('London')) return { country: 'United Kingdom', countryCode: 'GB', city: 'London', flag: '🇬🇧' };
+    if (tz.includes('America/')) {
+      const cityClean = tz.replace('America/', '').replace('_', ' ');
+      return { country: 'Brasil', countryCode: 'BR', city: cityClean, flag: '🇧🇷' };
+    }
+  } catch {
+    // Ignore
+  }
+  return { country: 'Brasil', countryCode: 'BR', city: 'São Paulo', flag: '🇧🇷' };
+}
 
 const INITIAL_REAL_DATA: RealAnalyticsData = {
   isRealOnly: true,
@@ -146,28 +176,30 @@ class RealAnalyticsTracker {
   private currentSessionMaxDepth: number = 0;
   private currentSessionClicks: number = 0;
   private isFirebaseConnected: boolean = false;
-  private isFilterActive: boolean = true;
-  private isKnownAdminDevice: boolean = false;
   private currentSessionId: string;
   private currentSessionProfile: VisitorSessionProfile | null = null;
   private visitorSessions: VisitorSessionProfile[] = [];
-  private currentVisitorLocation: VisitorLocation = {
-    ip: '',
-    country: 'Detectando...',
-    countryCode: '',
-    region: '',
-    city: '',
-    flag: '🌍',
-    loaded: false,
-    isExcluded: false
-  };
+  private currentVisitorLocation: VisitorLocation;
   private listeners: Array<() => void> = [];
   private sessionCountedInTab: boolean = false;
 
   constructor() {
     this.currentSessionStartTime = Date.now();
     this.currentSessionId = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
-    this.initAdminDetection();
+    
+    // Immediate locale resolution so it never stays as "Detectando..."
+    const instantGeo = detectImmediateClientGeo();
+    this.currentVisitorLocation = {
+      ip: '',
+      country: instantGeo.country,
+      countryCode: instantGeo.countryCode,
+      region: '',
+      city: instantGeo.city,
+      flag: instantGeo.flag,
+      loaded: false,
+      isExcluded: false
+    };
+
     this.data = this.loadLocalCache();
     this.visitorSessions = this.loadLocalSessions();
     this.initFirestoreSync();
@@ -176,24 +208,8 @@ class RealAnalyticsTracker {
     this.detectVisitorLocation();
   }
 
-  private initAdminDetection() {
-    try {
-      localStorage.removeItem(ADMIN_DEVICE_KEY);
-      localStorage.removeItem(ADMIN_FILTER_TOGGLE_KEY);
-      this.isKnownAdminDevice = false;
-      this.isFilterActive = false;
-      this.currentVisitorLocation.isExcluded = false;
-    } catch {
-      this.isKnownAdminDevice = false;
-      this.isFilterActive = false;
-      this.currentVisitorLocation.isExcluded = false;
-    }
-  }
-
   public markAsAdminDevice() {
-    // Keep tracking enabled so testing records seamlessly
-    this.isKnownAdminDevice = false;
-    this.currentVisitorLocation.isExcluded = false;
+    // Keep tracking enabled so all actions are recorded
     this.notifyListeners();
   }
 
@@ -202,13 +218,11 @@ class RealAnalyticsTracker {
   }
 
   public toggleFilter(_enable: boolean) {
-    this.isFilterActive = false;
-    this.currentVisitorLocation.isExcluded = false;
     this.notifyListeners();
   }
 
   public isExcluded(): boolean {
-    // Always return false so every visitor and owner test session is recorded!
+    // Never exclude so all owner testing and real visitors are captured
     return false;
   }
 
@@ -306,9 +320,7 @@ class RealAnalyticsTracker {
         } else {
           this.syncToFirestore();
         }
-      }, () => {
-        // Fallback offline
-      });
+      }, () => {});
 
       // Live listener to recent events collection
       const eventsRef = collection(db, 'analytics_events');
@@ -380,8 +392,6 @@ class RealAnalyticsTracker {
   // Record a legitimate visit to Firebase Firestore IMMEDIATELY on page load
   private async initSession() {
     if (this.sessionCountedInTab) return;
-    if (this.isExcluded()) return;
-
     this.recordVisit();
   }
 
@@ -404,6 +414,9 @@ class RealAnalyticsTracker {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const device = typeof window !== 'undefined' && window.innerWidth < 768 ? 'Mobile' : 'Desktop';
+    const locStr = this.currentVisitorLocation.city 
+      ? `${this.currentVisitorLocation.city}, ${this.currentVisitorLocation.country}`
+      : this.currentVisitorLocation.country;
 
     // Increment local state immediately
     this.data.totalVisits += 1;
@@ -411,7 +424,6 @@ class RealAnalyticsTracker {
       this.data.uniqueVisitors += 1;
     }
     this.data.sessionCountForAvg += 1;
-    // Default outcome is bounced until user clicks a button
     this.data.bouncedVisits += 1;
     this.saveLocalCache();
 
@@ -419,11 +431,11 @@ class RealAnalyticsTracker {
     this.currentSessionProfile = {
       id: this.currentSessionId,
       visitorId: this.getVisitorUid(),
-      ip: this.currentVisitorLocation.ip || 'Visitante Online',
-      city: this.currentVisitorLocation.city || '',
-      country: this.currentVisitorLocation.country !== 'Detectando...' ? this.currentVisitorLocation.country : 'Detectando...',
-      countryCode: this.currentVisitorLocation.countryCode || '',
-      flag: this.currentVisitorLocation.flag || '🌍',
+      ip: this.currentVisitorLocation.ip || 'Identificando...',
+      city: this.currentVisitorLocation.city,
+      country: this.currentVisitorLocation.country,
+      countryCode: this.currentVisitorLocation.countryCode,
+      flag: this.currentVisitorLocation.flag,
       device,
       enteredAt: now.toISOString(),
       enteredTimeFormatted: timeStr,
@@ -438,7 +450,7 @@ class RealAnalyticsTracker {
       timeline: [
         {
           time: timeStr,
-          text: `🚀 Entrou na página (${device})`,
+          text: `🚀 Entrou na página (${device}) — Origem: ${this.currentVisitorLocation.flag} ${locStr}`,
           type: 'visit'
         }
       ]
@@ -473,8 +485,8 @@ class RealAnalyticsTracker {
       await addDoc(collection(db, 'analytics_events'), {
         type: 'visit',
         detail: `Nova visita iniciada (${device})`,
-        location: this.currentVisitorLocation.city ? `${this.currentVisitorLocation.city}, ${this.currentVisitorLocation.country}` : 'Visitante Online',
-        flag: this.currentVisitorLocation.flag || '🌍',
+        location: locStr,
+        flag: this.currentVisitorLocation.flag,
         timestamp: timeStr,
         createdAt: new Date().toISOString()
       });
@@ -484,7 +496,7 @@ class RealAnalyticsTracker {
   }
 
   private async updateCurrentSessionInFirestore() {
-    if (!this.currentSessionProfile || this.isExcluded()) return;
+    if (!this.currentSessionProfile) return;
     try {
       const sessionRef = doc(db, 'analytics_sessions', this.currentSessionId);
       await setDoc(sessionRef, this.currentSessionProfile, { merge: true });
@@ -503,165 +515,123 @@ class RealAnalyticsTracker {
   }
 
   private async detectVisitorLocation() {
+    // 1. Try ipwho.is
     try {
       const res = await fetch('https://ipwho.is/');
-      if (!res.ok) throw new Error('ipwho error');
-      const geo = await res.json();
-
-      if (geo && geo.success !== false && geo.country) {
-        const flagEmoji = geo.flag?.emoji || this.getFlagEmoji(geo.country_code);
-        const ip = geo.ip || '';
-        
-        this.currentVisitorLocation = {
-          ip,
-          country: geo.country,
-          countryCode: geo.country_code || '',
-          region: geo.region || '',
-          city: geo.city || '',
-          flag: flagEmoji,
-          loaded: true,
-          isExcluded: this.isFilterActive && (this.isKnownAdminDevice || ip === OWNER_IP)
-        };
-
-        if (ip === OWNER_IP) {
-          this.markAsAdminDevice();
-          this.notifyListeners();
+      if (res.ok) {
+        const geo = await res.json();
+        if (geo && geo.success !== false && geo.country) {
+          this.applyResolvedGeo(
+            geo.ip || '',
+            geo.country,
+            geo.country_code || 'BR',
+            geo.city || '',
+            geo.region || '',
+            geo.flag?.emoji || this.getFlagEmoji(geo.country_code)
+          );
           return;
         }
-
-        // Update current session profile with detected geolocation
-        if (this.currentSessionProfile) {
-          this.currentSessionProfile.country = geo.country;
-          this.currentSessionProfile.countryCode = geo.country_code || '';
-          this.currentSessionProfile.city = geo.city || '';
-          this.currentSessionProfile.flag = flagEmoji;
-          this.currentSessionProfile.ip = ip;
-          this.updateCurrentSessionInFirestore();
-        }
-
-        if (!this.isExcluded()) {
-          if (!this.sessionCountedInTab) {
-            this.recordVisit();
-          }
-
-          const cName = geo.country;
-          if (!this.data.countries[cName]) {
-            this.data.countries[cName] = {
-              country: cName,
-              countryCode: geo.country_code || 'BR',
-              flag: flagEmoji,
-              count: 0,
-              cities: []
-            };
-          }
-          this.data.countries[cName].count += 1;
-          if (geo.city && !this.data.countries[cName].cities.includes(geo.city)) {
-            this.data.countries[cName].cities.push(geo.city);
-          }
-
-          this.saveLocalCache();
-          this.notifyListeners();
-
-          try {
-            const summaryRef = doc(db, 'analytics_summary', 'global_metrics');
-            await updateDoc(summaryRef, {
-              countries: this.data.countries,
-              lastUpdated: new Date().toISOString()
-            });
-
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            await addDoc(collection(db, 'analytics_events'), {
-              type: 'geo',
-              detail: `Origem detectada: ${geo.city ? geo.city + ', ' : ''}${cName}`,
-              location: `${geo.city ? geo.city + ', ' : ''}${cName}`,
-              flag: flagEmoji,
-              timestamp: timeStr,
-              createdAt: new Date().toISOString()
-            });
-          } catch (e) {
-            console.warn('Failed to update country in Firestore:', e);
-          }
-        }
-
-        this.notifyListeners();
-        return;
       }
     } catch {
-      // Secondary fallback
-      try {
-        const res2 = await fetch('https://freeipapi.com/api/json');
+      // Ignore and fallback
+    }
+
+    // 2. Try freeipapi.com
+    try {
+      const res2 = await fetch('https://freeipapi.com/api/json');
+      if (res2.ok) {
         const geo2 = await res2.json();
         if (geo2 && geo2.countryName) {
-          const flag = this.getFlagEmoji(geo2.countryCode);
-          const ip = geo2.ipAddress || '';
-
-          this.currentVisitorLocation = {
-            ip,
-            country: geo2.countryName,
-            countryCode: geo2.countryCode || '',
-            region: geo2.regionName || '',
-            city: geo2.cityName || '',
-            flag: flag,
-            loaded: true,
-            isExcluded: this.isFilterActive && (this.isKnownAdminDevice || ip === OWNER_IP)
-          };
-
-          if (ip === OWNER_IP) {
-            this.markAsAdminDevice();
-            this.notifyListeners();
-            return;
-          }
-
-          if (this.currentSessionProfile) {
-            this.currentSessionProfile.country = geo2.countryName;
-            this.currentSessionProfile.countryCode = geo2.countryCode || '';
-            this.currentSessionProfile.city = geo2.cityName || '';
-            this.currentSessionProfile.flag = flag;
-            this.currentSessionProfile.ip = ip;
-            this.updateCurrentSessionInFirestore();
-          }
-
-          if (!this.isExcluded()) {
-            if (!this.sessionCountedInTab) {
-              this.recordVisit();
-            }
-
-            const cName = geo2.countryName;
-            if (!this.data.countries[cName]) {
-              this.data.countries[cName] = {
-                country: cName,
-                countryCode: geo2.countryCode || '',
-                flag: flag,
-                count: 0,
-                cities: []
-              };
-            }
-            this.data.countries[cName].count += 1;
-            if (geo2.cityName && !this.data.countries[cName].cities.includes(geo2.cityName)) {
-              this.data.countries[cName].cities.push(geo2.cityName);
-            }
-
-            this.saveLocalCache();
-            this.notifyListeners();
-          }
-
-          this.notifyListeners();
+          this.applyResolvedGeo(
+            geo2.ipAddress || '',
+            geo2.countryName,
+            geo2.countryCode || 'BR',
+            geo2.cityName || '',
+            geo2.regionName || '',
+            this.getFlagEmoji(geo2.countryCode)
+          );
           return;
         }
-      } catch {
-        this.currentVisitorLocation = {
-          ip: '',
-          country: 'Visitante Online',
-          countryCode: 'BR',
-          region: '',
-          city: '',
-          flag: '🌍',
-          loaded: true,
-          isExcluded: this.isFilterActive && this.isKnownAdminDevice
-        };
-        this.notifyListeners();
       }
+    } catch {
+      // Ignore and fallback
     }
+
+    // 3. Try ipapi.co
+    try {
+      const res3 = await fetch('https://ipapi.co/json/');
+      if (res3.ok) {
+        const geo3 = await res3.json();
+        if (geo3 && geo3.country_name) {
+          this.applyResolvedGeo(
+            geo3.ip || '',
+            geo3.country_name,
+            geo3.country_code || 'BR',
+            geo3.city || '',
+            geo3.region || '',
+            this.getFlagEmoji(geo3.country_code)
+          );
+          return;
+        }
+      }
+    } catch {
+      // Keep immediate timezone geo
+    }
+  }
+
+  private applyResolvedGeo(
+    ip: string, 
+    country: string, 
+    countryCode: string, 
+    city: string, 
+    region: string, 
+    flag: string
+  ) {
+    this.currentVisitorLocation = {
+      ip,
+      country,
+      countryCode,
+      region,
+      city,
+      flag,
+      loaded: true,
+      isExcluded: false
+    };
+
+    // Update current session profile
+    if (this.currentSessionProfile) {
+      this.currentSessionProfile.country = country;
+      this.currentSessionProfile.countryCode = countryCode;
+      this.currentSessionProfile.city = city;
+      this.currentSessionProfile.flag = flag;
+      this.currentSessionProfile.ip = ip;
+      
+      // Update in visitorSessions array and local storage
+      this.visitorSessions = this.visitorSessions.map(s => 
+        s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
+      );
+      this.saveLocalSessions();
+      this.updateCurrentSessionInFirestore();
+    }
+
+    // Register country stats
+    if (!this.data.countries[country]) {
+      this.data.countries[country] = {
+        country,
+        countryCode,
+        flag,
+        count: 0,
+        cities: []
+      };
+    }
+    this.data.countries[country].count += 1;
+    if (city && !this.data.countries[country].cities.includes(city)) {
+      this.data.countries[country].cities.push(city);
+    }
+
+    this.saveLocalCache();
+    this.syncToFirestore();
+    this.notifyListeners();
   }
 
   private initListeners() {
@@ -678,13 +648,11 @@ class RealAnalyticsTracker {
           const depth = Math.min(100, Math.round((scrollTop / docHeight) * 100));
           if (depth > this.currentSessionMaxDepth) {
             this.currentSessionMaxDepth = depth;
-            if (!this.isExcluded()) {
-              if (depth > this.data.maxScrollDepthPercent) {
-                this.data.maxScrollDepthPercent = depth;
-              }
-              this.handleScrollMilestone(depth);
-              this.updateSessionScroll(depth);
+            if (depth > this.data.maxScrollDepthPercent) {
+              this.data.maxScrollDepthPercent = depth;
             }
+            this.handleScrollMilestone(depth);
+            this.updateSessionScroll(depth);
           }
         }
       }, 150);
@@ -692,8 +660,6 @@ class RealAnalyticsTracker {
 
     // Click tracking
     window.addEventListener('click', (e: MouseEvent) => {
-      if (this.isExcluded()) return;
-
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
@@ -734,31 +700,27 @@ class RealAnalyticsTracker {
 
     // Active session duration updater
     setInterval(() => {
-      if (!this.isExcluded()) {
-        this.data.totalTimeSeconds += 5;
-        this.saveLocalCache();
+      this.data.totalTimeSeconds += 5;
+      this.saveLocalCache();
 
-        if (this.currentSessionProfile) {
-          this.currentSessionProfile.durationSeconds += 5;
-          this.currentSessionProfile.lastActiveAt = new Date().toISOString();
-          // Update in visitor sessions list
-          this.visitorSessions = this.visitorSessions.map(s => 
-            s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
-          );
-          this.saveLocalSessions();
-          this.notifyListeners();
+      if (this.currentSessionProfile) {
+        this.currentSessionProfile.durationSeconds += 5;
+        this.currentSessionProfile.lastActiveAt = new Date().toISOString();
+        this.visitorSessions = this.visitorSessions.map(s => 
+          s.id === this.currentSessionId ? { ...this.currentSessionProfile! } : s
+        );
+        this.saveLocalSessions();
+        this.notifyListeners();
 
-          // Sync to Firestore periodically
-          if (this.currentSessionProfile.durationSeconds % 15 === 0) {
-            this.updateCurrentSessionInFirestore();
-          }
+        if (this.currentSessionProfile.durationSeconds % 15 === 0) {
+          this.updateCurrentSessionInFirestore();
         }
       }
     }, 5000);
 
     // Flush on page unload / leave
     window.addEventListener('beforeunload', () => {
-      if (this.currentSessionProfile && !this.isExcluded()) {
+      if (this.currentSessionProfile) {
         this.currentSessionProfile.lastActiveAt = new Date().toISOString();
         this.updateCurrentSessionInFirestore();
       }
@@ -777,7 +739,6 @@ class RealAnalyticsTracker {
     this.currentSessionProfile.maxScrollPercent = depth;
     this.currentSessionProfile.maxScrollSection = sectionName;
 
-    // Add milestone event to session timeline every 25%
     const milestones = [25, 50, 75, 100];
     const prevDepth = this.currentSessionProfile.maxScrollPercent;
     for (const m of milestones) {
@@ -802,24 +763,12 @@ class RealAnalyticsTracker {
 
   private handleScrollMilestone(depth: number) {
     let milestoneKey: keyof RealAnalyticsData['scrollMilestones'] | null = null;
-    let label = '';
 
-    if (depth >= 90) {
-      milestoneKey = 'footer';
-      label = 'Rodapé & Referências';
-    } else if (depth >= 75) {
-      milestoneKey = 'guarantee';
-      label = 'Garantia de 180 Dias';
-    } else if (depth >= 60) {
-      milestoneKey = 'pricing';
-      label = 'Tabela de Preços';
-    } else if (depth >= 40) {
-      milestoneKey = 'efficacy';
-      label = 'Resultados Clínicos';
-    } else if (depth >= 20) {
-      milestoneKey = 'ingredients';
-      label = 'Ingredientes Naturais';
-    }
+    if (depth >= 90) milestoneKey = 'footer';
+    else if (depth >= 75) milestoneKey = 'guarantee';
+    else if (depth >= 60) milestoneKey = 'pricing';
+    else if (depth >= 40) milestoneKey = 'efficacy';
+    else if (depth >= 20) milestoneKey = 'ingredients';
 
     if (milestoneKey) {
       this.data.scrollMilestones[milestoneKey] += 1;
@@ -839,11 +788,13 @@ class RealAnalyticsTracker {
     }
   }
 
-  // Explicit tracking for Cookie Policy "Allow" and "Close" buttons
+  // Explicit tracking for Cookie Policy "Allow" and "Close" buttons with origin telemetry
   public async recordCookieAction(action: 'allow' | 'close') {
-    if (this.isExcluded()) return;
-
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const locStr = this.currentVisitorLocation.city 
+      ? `${this.currentVisitorLocation.city}, ${this.currentVisitorLocation.country}`
+      : (this.currentVisitorLocation.country || 'Brasil');
+    const flagStr = this.currentVisitorLocation.flag || '🇧🇷';
 
     if (action === 'allow') {
       this.data.cookieAllowClicks = (this.data.cookieAllowClicks || 0) + 1;
@@ -859,14 +810,14 @@ class RealAnalyticsTracker {
         this.currentSessionProfile.outcome = 'allow';
         this.currentSessionProfile.timeline.push({
           time: timeStr,
-          text: '🟢 Apertou "Allow" no Cookie Policy (Redirecionamento Oficial)',
+          text: `🟢 Apertou "Allow" no Cookie Policy (Origem: ${flagStr} ${locStr})`,
           type: 'cookie'
         });
       } else {
         this.currentSessionProfile.outcome = 'close';
         this.currentSessionProfile.timeline.push({
           time: timeStr,
-          text: '🟡 Apertou "Close" no Cookie Policy (Fechou o aviso)',
+          text: `🟡 Apertou "Close" no Cookie Policy (Origem: ${flagStr} ${locStr})`,
           type: 'cookie'
         });
       }
@@ -892,12 +843,13 @@ class RealAnalyticsTracker {
   }
 
   public async recordClick(buttonName: string) {
-    if (this.isExcluded()) {
-      return;
-    }
-
     this.currentSessionClicks += 1;
     this.data.totalClicks += 1;
+
+    const locStr = this.currentVisitorLocation.city 
+      ? `${this.currentVisitorLocation.city}, ${this.currentVisitorLocation.country}`
+      : (this.currentVisitorLocation.country || 'Brasil');
+    const flagStr = this.currentVisitorLocation.flag || '🇧🇷';
 
     const isCheckout = buttonName.toLowerCase().includes('checkout') || 
                        buttonName.toLowerCase().includes('bottle') || 
@@ -912,7 +864,8 @@ class RealAnalyticsTracker {
       this.data.buttonClicks[buttonName] = {
         count: 0,
         category: isCheckout ? 'checkout' : 'cta',
-        lastClicked: 'Agora'
+        lastClicked: 'Agora',
+        locations: {}
       };
     }
 
@@ -920,12 +873,21 @@ class RealAnalyticsTracker {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     this.data.buttonClicks[buttonName].lastClicked = timeStr;
 
+    // Record city/country telemetria for this specific button click
+    if (!this.data.buttonClicks[buttonName].locations) {
+      this.data.buttonClicks[buttonName].locations = {};
+    }
+    this.data.buttonClicks[buttonName].locations![locStr] = 
+      (this.data.buttonClicks[buttonName].locations![locStr] || 0) + 1;
+
     // Update current session profile
     if (this.currentSessionProfile) {
       this.currentSessionProfile.actionsCount += 1;
       this.currentSessionProfile.buttonsClicked.push({
         name: buttonName,
-        timestamp: timeStr
+        timestamp: timeStr,
+        location: locStr,
+        flag: flagStr
       });
 
       // Update outcome
@@ -933,13 +895,13 @@ class RealAnalyticsTracker {
         this.currentSessionProfile.outcome = 'checkout';
         this.currentSessionProfile.timeline.push({
           time: timeStr,
-          text: `🛒 Clicou para Comprar: "${buttonName}"`,
+          text: `🛒 Clicou para Comprar: "${buttonName}" (Origem: ${flagStr} ${locStr})`,
           type: 'click'
         });
       } else if (!buttonName.includes('Cookie Policy')) {
         this.currentSessionProfile.timeline.push({
           time: timeStr,
-          text: `🖱️ Clicou no botão: "${buttonName}"`,
+          text: `🖱️ Clicou no botão: "${buttonName}" (Origem: ${flagStr} ${locStr})`,
           type: 'click'
         });
         if (this.currentSessionProfile.outcome === 'bounced_no_clicks') {
@@ -965,12 +927,15 @@ class RealAnalyticsTracker {
         [`buttonClicks.${buttonName}.count`]: increment(1),
         [`buttonClicks.${buttonName}.category`]: isCheckout ? 'checkout' : 'cta',
         [`buttonClicks.${buttonName}.lastClicked`]: timeStr,
+        [`buttonClicks.${buttonName}.locations.${locStr}`]: increment(1),
         lastUpdated: new Date().toISOString()
       });
 
       await addDoc(collection(db, 'analytics_events'), {
         type: 'click',
-        detail: `Clicou em: "${buttonName}"`,
+        detail: `Clicou em: "${buttonName}" (${flagStr} ${locStr})`,
+        location: locStr,
+        flag: flagStr,
         timestamp: timeStr,
         createdAt: new Date().toISOString()
       });
@@ -1007,13 +972,6 @@ class RealAnalyticsTracker {
   }
 
   public getCurrentSessionStats() {
-    if (this.isExcluded()) {
-      return {
-        elapsedSeconds: 0,
-        maxScrollDepth: 0,
-        sessionClicks: 0
-      };
-    }
     const elapsedSeconds = Math.floor((Date.now() - this.currentSessionStartTime) / 1000);
     return {
       elapsedSeconds,

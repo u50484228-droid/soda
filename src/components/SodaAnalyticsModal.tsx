@@ -433,12 +433,12 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
                           {/* Col 1: Location & Device Info */}
                           <div className="flex items-start sm:items-center gap-3">
                             <span className="text-2xl sm:text-3xl shrink-0 mt-0.5 sm:mt-0">
-                              {session.flag || '🌍'}
+                              {session.flag || '🇧🇷'}
                             </span>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-extrabold text-white text-sm sm:text-base">
-                                  {session.city ? `${session.city}, ` : ''}{session.country || 'Visitante Online'}
+                                  {session.city ? `${session.city}, ` : ''}{(!session.country || session.country === 'Detectando...') ? 'Brasil' : session.country}
                                 </span>
                                 
                                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
@@ -450,8 +450,8 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
                                   <span>{session.device}</span>
                                 </span>
 
-                                {session.ip && (
-                                  <span className="text-[10px] text-slate-500 font-mono">
+                                {session.ip && session.ip !== 'Visitante Online' && session.ip !== 'Identificando...' && (
+                                  <span className="text-[10px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
                                     IP: {session.ip}
                                   </span>
                                 )}
@@ -559,20 +559,32 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
                                   </div>
                                 ) : (
                                   <div className="space-y-2">
-                                    {session.buttonsClicked.map((b, bIdx) => (
-                                      <div 
-                                        key={bIdx}
-                                        className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between gap-2"
-                                      >
-                                        <div className="flex items-center gap-2 truncate">
-                                          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                                          <span className="font-semibold text-white truncate">{b.name}</span>
+                                    {session.buttonsClicked.map((b, bIdx) => {
+                                      const clickLoc = b.location || (session.city ? `${session.city}, ${session.country}` : session.country || 'Brasil');
+                                      const clickFlag = b.flag || session.flag || '🇧🇷';
+
+                                      return (
+                                        <div 
+                                          key={bIdx}
+                                          className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                                        >
+                                          <div className="flex items-center gap-2 truncate">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                                            <span className="font-bold text-white text-xs sm:text-sm truncate">{b.name}</span>
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-200 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800/60">
+                                              <span>{clickFlag}</span>
+                                              <span>{clickLoc}</span>
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 font-mono">
+                                              {b.timestamp}
+                                            </span>
+                                          </div>
                                         </div>
-                                        <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                                          {b.timestamp}
-                                        </span>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -701,6 +713,20 @@ export const SodaAnalyticsModal: React.FC<SodaAnalyticsModalProps> = ({ isOpen, 
                               )}
                             </div>
                             <span className="text-xs text-slate-400">Último clique: {stat.lastClicked}</span>
+                            
+                            {stat.locations && Object.keys(stat.locations).length > 0 && (
+                              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
+                                  <MapPin className="w-3 h-3 text-rose-400" />
+                                  <span>Origem dos cliques:</span>
+                                </span>
+                                {Object.entries(stat.locations).map(([loc, cnt], lIdx) => (
+                                  <span key={lIdx} className="text-[10px] font-semibold text-purple-200 bg-purple-950/80 border border-purple-800/60 px-2 py-0.5 rounded-md">
+                                    📍 {loc} ({cnt})
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
 
