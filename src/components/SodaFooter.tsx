@@ -1,5 +1,4 @@
 import React from 'react';
-import { BarChart3 } from 'lucide-react';
 
 interface SodaFooterProps {
   onOpenPolicy: (type: 'contact' | 'terms' | 'disclaimer' | 'privacy' | 'shipping' | 'refund' | 'order-support') => void;
@@ -107,26 +106,9 @@ export const SodaFooter: React.FC<SodaFooterProps> = ({ onOpenPolicy, onOpenAnal
           This site is not a part of the Google website or Google Inc. Additionally, this site is NOT endorsed by Google in any way.
         </p>
 
-        {/* Copyright (Matches Photo 5) with Hidden Analytics Button */}
-        <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-center gap-1">
-          <span>Copyright</span>
-          {/* Secret clickable © trigger */}
-          <button
-            onClick={onOpenAnalytics}
-            className="hover:text-purple-400 transition-colors cursor-pointer text-slate-400 font-bold focus:outline-hidden"
-            title="Telemetry Analytics"
-          >
-            ©
-          </button>
-          <span>2026 SodaTide. All Rights Reserved.</span>
-          {/* Secret subtle mini chart button */}
-          <button
-            onClick={onOpenAnalytics}
-            title="Open Analytics Dashboard"
-            className="opacity-15 hover:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-purple-400 cursor-pointer rounded ml-1"
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-          </button>
+        {/* Copyright */}
+        <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-400 text-center">
+          <p>Copyright © 2026 SodaTide. All Rights Reserved.</p>
         </div>
 
       </div>
