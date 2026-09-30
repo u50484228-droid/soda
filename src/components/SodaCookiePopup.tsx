@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, Check, X, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Lock, X, ArrowRight } from 'lucide-react';
 import { tracker } from '../utils/sodaAnalytics';
 
 const AFFILIATE_TARGET_URL = 'https://mysodatide.com/sdt-aff-buy-dtc/?aff_id=197118';
@@ -80,25 +80,9 @@ export const SodaCookiePopup: React.FC = () => {
         </div>
 
         {/* Description Body */}
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-5">
           We use essential cookies and secure tracking technologies to ensure your safe browsing, data encryption, and automatic activation of the best official discounts and savings.
         </p>
-
-        {/* Trust Badges Check list */}
-        <div className="space-y-2 mb-5 bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-xs">
-          <div className="flex items-center gap-2 text-slate-700 font-medium">
-            <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <Check className="w-3 h-3 stroke-[3]" />
-            </div>
-            <span>Active Session Cookies & Discount Applied</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-700 font-medium">
-            <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <Check className="w-3 h-3 stroke-[3]" />
-            </div>
-            <span>256-Bit SSL Encrypted Secure Checkout</span>
-          </div>
-        </div>
 
         {/* Main CTA Button: ACCEPT COOKIES & GO DIRECTLY TO AFFILIATE LINK */}
         <button
@@ -120,18 +104,10 @@ export const SodaCookiePopup: React.FC = () => {
           )}
         </button>
 
-        {/* Secondary Discreet Link */}
-        <div className="mt-3.5 flex items-center justify-between text-[11px] text-slate-500 px-1">
-          <div className="flex items-center gap-1 text-slate-500">
-            <Lock className="w-3 h-3 text-emerald-600" />
-            <span>Secure & Verified Connection</span>
-          </div>
-          <button
-            onClick={handleDismiss}
-            className="text-slate-400 hover:text-slate-600 underline cursor-pointer"
-          >
-            Essential Only
-          </button>
+        {/* Security verification footer note */}
+        <div className="mt-3.5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
+          <Lock className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Secure & Verified 256-bit Connection</span>
         </div>
       </div>
     </aside>
