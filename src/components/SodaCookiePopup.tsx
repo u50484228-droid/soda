@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, X, ArrowRight } from 'lucide-react';
+import { ShieldCheck, X, ArrowRight } from 'lucide-react';
 import { tracker } from '../utils/sodaAnalytics';
 
 const AFFILIATE_TARGET_URL = 'https://mysodatide.com/sdt-aff-buy-dtc/?aff_id=197118';
@@ -70,17 +70,14 @@ export const SodaCookiePopup: React.FC = () => {
         </button>
 
         {/* Header Title */}
-        <div className="mb-3.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded border border-purple-100">
-            Privacy & Security
-          </span>
-          <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight mt-1.5">
+        <div className="mb-3">
+          <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">
             Cookie Preferences
           </h3>
         </div>
 
         {/* Description Body */}
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-5">
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6">
           We use essential cookies and secure tracking technologies to ensure your safe browsing, data encryption, and automatic activation of the best official discounts and savings.
         </p>
 
@@ -103,12 +100,6 @@ export const SodaCookiePopup: React.FC = () => {
             </>
           )}
         </button>
-
-        {/* Security verification footer note */}
-        <div className="mt-3.5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
-          <Lock className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Secure & Verified 256-bit Connection</span>
-        </div>
       </div>
     </aside>
   );
